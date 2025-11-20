@@ -1,9 +1,7 @@
-import { PrismaClient } from '@prisma/client';
+import prisma from '../lib/prisma';
 import { PDFLoader } from '../ai/loaders/pdf.loader';
 import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import type { BOQExtraction } from '../ai/schemas/boq.schema';
-
-const prisma = new PrismaClient();
 
 export interface TenderUploadResult {
   tenderId: string;

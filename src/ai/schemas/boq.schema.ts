@@ -8,8 +8,8 @@ export const BOQItemSchema = z.object({
   description: z.string().describe('Detailed description of the work item'),
   quantity: z.number().positive().describe('Quantity of the item'),
   unit: z.string().describe('Unit of measurement (e.g., m², m³, kg, nos)'),
-  unitRate: z.number().positive().optional().describe('Rate per unit (optional)'),
-  amount: z.number().positive().optional().describe('Total amount (quantity × unit rate)'),
+  unitRate: z.number().min(0).optional().describe('Rate per unit (optional)'),
+  amount: z.number().min(0).optional().describe('Total amount (quantity × unit rate)'),
   category: z.string().optional().describe('Category or trade (e.g., Civil, Electrical, Plumbing)'),
 });
 

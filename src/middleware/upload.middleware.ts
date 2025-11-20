@@ -22,12 +22,18 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
   }
 };
 
+// Get max file size from environment or use default
+const getMaxFileSize = (): number => {
+  const size = parseInt(process.env.MAX_FILE_SIZE || '10485760', 10);
+  return isNaN(size) ? 10485760 : size; // 10MB default
+};
+
 // Configure multer
 const upload = multer({
   storage: storage,
   fileFilter: fileFilter,
   limits: {
-    fileSize: parseInt(process.env.MAX_FILE_SIZE || '10485760'), // 10MB default
+    fileSize: getMaxFileSize(),
   },
 });
 

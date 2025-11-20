@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { TenderController } from '../controllers/tender.controller';
 import upload from '../middleware/upload.middleware';
+import { uploadRateLimiter } from '../middleware/rate-limit.middleware';
 
 const router = Router();
 const tenderController = new TenderController();
@@ -11,6 +12,7 @@ const tenderController = new TenderController();
  */
 router.post(
   '/upload',
+  uploadRateLimiter,
   upload.single('tender'),
   (req, res, next) => tenderController.uploadTender(req, res, next)
 );

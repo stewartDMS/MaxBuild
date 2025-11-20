@@ -2,12 +2,16 @@ import { Request, Response, NextFunction } from 'express';
 import { TenderService } from '../services/tender.service';
 import fs from 'fs/promises';
 
-const tenderService = new TenderService();
-
 /**
  * Controller for tender-related operations
  */
 export class TenderController {
+  private tenderService: TenderService;
+
+  constructor(tenderService?: TenderService) {
+    this.tenderService = tenderService || new TenderService();
+  }
+
   /**
    * Upload and process a tender PDF
    * POST /api/tenders/upload
@@ -24,7 +28,7 @@ export class TenderController {
       const { path: filePath, originalname, size, mimetype } = req.file;
 
       // Process the tender
-      const result = await tenderService.processTender(
+      const result = await this.tenderService.processTender(
         filePath,
         originalname,
         size,
@@ -53,7 +57,7 @@ export class TenderController {
     try {
       const { id } = req.params;
 
-      const tender = await tenderService.getTender(id);
+      const tender = await this.tenderService.getTender(id);
 
       if (!tender) {
         return res.status(404).json({
@@ -80,7 +84,7 @@ export class TenderController {
       const skip = parseInt(req.query.skip as string) || 0;
       const take = parseInt(req.query.take as string) || 10;
 
-      const tenders = await tenderService.listTenders(skip, take);
+      const tenders = await this.tenderService.listTenders(skip, take);
 
       res.status(200).json({
         success: true,
@@ -104,7 +108,7 @@ export class TenderController {
     try {
       const { id } = req.params;
 
-      await tenderService.deleteTender(id);
+      await this.tenderService.deleteTender(id);
 
       res.status(200).json({
         success: true,
