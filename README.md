@@ -35,7 +35,56 @@ This repository contains:
 - **React 19** - UI library
 - **TypeScript** - Type-safe JavaScript
 - **Vite** - Build tool and dev server
-- **React Router** (future) - Client-side routing
+- **Material-UI (MUI) v6** - Modern component library
+- **Emotion** - CSS-in-JS styling engine
+- **React Router v7** - Client-side routing
+
+## Design System
+
+The frontend implements a modern SaaS dashboard design with the following features:
+
+### Theme Support
+- **Light/Dark Mode**: Full support for light and dark themes with automatic system preference detection
+- **Theme Persistence**: User theme preference is saved to localStorage
+- **Seamless Switching**: Toggle between themes using the icon button in the header
+
+### Color Palette
+| Color | Light Mode | Dark Mode | Usage |
+|-------|------------|-----------|-------|
+| Primary | `#6366f1` (Indigo) | `#6366f1` | Main actions, active states |
+| Secondary | `#7c3aed` (Purple) | `#7c3aed` | Secondary actions |
+| Success | `#10b981` (Green) | `#10b981` | Completed states, positive trends |
+| Warning | `#f59e0b` (Amber) | `#f59e0b` | Pending states, caution |
+| Error | `#ef4444` (Red) | `#ef4444` | Failed states, errors |
+| Info | `#3b82f6` (Blue) | `#3b82f6` | Informational elements |
+
+### Typography
+- **Font Family**: Inter (with fallbacks to Roboto, system fonts)
+- **Heading Scale**: h1 (2.5rem) → h6 (0.875rem) with consistent weight hierarchy
+- **Body Text**: 1rem (body1) and 0.875rem (body2)
+
+### Components
+- **StatCard**: Dashboard statistics with trends and icons
+- **TenderCard**: Interactive tender document cards with status badges
+- **StatusBadge**: Color-coded status indicators (Completed, Processing, Pending, Failed, Draft)
+- **UploadArea**: Drag-and-drop file upload zone
+- **RecentActivity**: Activity feed with type-based color indicators
+- **DashboardLayout**: Responsive layout with sidebar navigation
+
+### Accessibility (WCAG Compliance)
+- Proper heading hierarchy (h1 → h6)
+- ARIA labels on interactive elements
+- Focus-visible outlines for keyboard navigation
+- Skip link for main content access
+- Sufficient color contrast ratios
+- Screen reader-friendly navigation
+- Reduced motion support (`prefers-reduced-motion`)
+
+### Responsive Design
+- **Desktop (≥900px)**: Full sidebar with navigation
+- **Mobile (<900px)**: Collapsible drawer navigation with hamburger menu
+- Fluid grid layouts that adapt to screen size
+- Touch-friendly interactive elements
 
 ## Project Structure
 
@@ -62,9 +111,26 @@ MaxBuild/
 │   └── index.ts          # Application entry point
 └── client/               # Frontend React app
     ├── src/
+    │   ├── components/   # Reusable UI components
+    │   │   ├── StatCard.tsx
+    │   │   ├── StatusBadge.tsx
+    │   │   ├── TenderCard.tsx
+    │   │   ├── UploadArea.tsx
+    │   │   └── RecentActivity.tsx
+    │   ├── contexts/     # React contexts
+    │   │   ├── ThemeContext.ts
+    │   │   └── ThemeProvider.tsx
+    │   ├── hooks/        # Custom React hooks
+    │   │   └── useThemeMode.ts
+    │   ├── layouts/      # Layout components
+    │   │   └── DashboardLayout.tsx
+    │   ├── pages/        # Page components
+    │   │   └── Dashboard.tsx
+    │   ├── theme/        # MUI theme configuration
+    │   │   └── theme.ts
     │   ├── App.tsx       # Main application component
     │   ├── main.tsx      # React entry point
-    │   └── assets/       # Static assets
+    │   └── index.css     # Global styles
     ├── public/           # Public files
     ├── index.html        # HTML template
     └── vite.config.ts    # Vite configuration
