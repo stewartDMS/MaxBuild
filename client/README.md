@@ -1,73 +1,104 @@
-# React + TypeScript + Vite
+# MaxBuild Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern SaaS dashboard for the AI-Powered Tender Automation System.
 
-Currently, two official plugins are available:
+## Technology Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- **React 19** - UI library
+- **TypeScript** - Type-safe JavaScript
+- **Vite** - Build tool and dev server
+- **Material-UI (MUI) v6** - Component library
+- **Emotion** - CSS-in-JS styling
+- **React Router v7** - Client-side routing
 
-## React Compiler
+## Getting Started
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Installation
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### Development
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm run dev
 ```
+
+The development server will start at `http://localhost:5173`.
+
+### Build
+
+```bash
+npm run build
+```
+
+### Lint
+
+```bash
+npm run lint
+```
+
+### Preview Production Build
+
+```bash
+npm run preview
+```
+
+## Features
+
+- ✨ Modern Material Design UI with MUI v6
+- 🌙 Light/Dark theme support with system preference detection
+- 📱 Fully responsive design (mobile, tablet, desktop)
+- ♿ WCAG accessibility compliance
+- 🎨 Consistent design system with custom color palette
+- 📊 Interactive dashboard with statistics and charts
+- 📁 Drag-and-drop file upload area
+- 🔔 Activity feed and notifications
+
+## Project Structure
+
+```
+src/
+├── components/       # Reusable UI components
+│   ├── StatCard.tsx
+│   ├── StatusBadge.tsx
+│   ├── TenderCard.tsx
+│   ├── UploadArea.tsx
+│   └── RecentActivity.tsx
+├── contexts/         # React contexts
+│   ├── ThemeContext.ts
+│   └── ThemeProvider.tsx
+├── hooks/            # Custom React hooks
+│   └── useThemeMode.ts
+├── layouts/          # Layout components
+│   └── DashboardLayout.tsx
+├── pages/            # Page components
+│   └── Dashboard.tsx
+├── theme/            # MUI theme configuration
+│   └── theme.ts
+├── App.tsx           # Main application component
+├── main.tsx          # React entry point
+└── index.css         # Global styles
+```
+
+## Theme Customization
+
+The theme is configured in `src/theme/theme.ts`. You can customize:
+
+- Color palette (primary, secondary, success, warning, error, info)
+- Typography (font family, sizes, weights)
+- Component styles (buttons, cards, inputs, etc.)
+- Spacing and border radius
+- Light and dark mode colors
+
+## Accessibility
+
+The application follows WCAG 2.1 guidelines:
+
+- Proper heading hierarchy
+- ARIA labels on interactive elements
+- Keyboard navigation support
+- Skip links for main content
+- Sufficient color contrast
+- Reduced motion support
