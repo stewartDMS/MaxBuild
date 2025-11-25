@@ -1,6 +1,7 @@
 import prisma from '../lib/prisma';
 import { PDFLoader } from '../ai/loaders/pdf.loader';
 import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
+import { ExcelService } from './excel.service';
 import type { BOQExtraction } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -17,15 +18,17 @@ export interface TenderUploadResult {
 export class TenderService {
   private pdfLoader: PDFLoader;
   private boqChain: BOQGenerationChain;
+  private excelService: ExcelService;
 
   constructor() {
     this.pdfLoader = new PDFLoader();
     this.boqChain = new BOQGenerationChain();
+    this.excelService = new ExcelService();
   }
 
   /**
-   * Process an uploaded tender PDF
-   * @param filePath Path to the uploaded PDF file
+   * Process an uploaded tender PDF or Excel file
+   * @param filePath Path to the uploaded file
    * @param fileName Original file name
    * @param fileSize File size in bytes
    * @param mimeType MIME type of the file
@@ -38,15 +41,36 @@ export class TenderService {
     mimeType: string
   ): Promise<TenderUploadResult> {
     try {
-      // Step 1: Extract text from PDF
-      console.log('Extracting text from PDF...');
-      const extractedText = await this.pdfLoader.load(filePath);
+      let extractedText: string;
+      let boqExtraction: BOQExtraction;
 
-      if (!extractedText || extractedText.trim().length === 0) {
-        throw new Error('No text could be extracted from the PDF');
+      // Detect file type and dispatch to appropriate parser
+      const isExcel = this.isExcelFile(mimeType);
+      const isPDF = mimeType === 'application/pdf';
+
+      if (isExcel) {
+        // Process Excel file
+        console.log('Processing Excel file...');
+        const result = await this.excelService.processExcel(filePath);
+        extractedText = result.extractedText;
+        boqExtraction = result.boqExtraction;
+      } else if (isPDF) {
+        // Process PDF file
+        console.log('Extracting text from PDF...');
+        extractedText = await this.pdfLoader.load(filePath);
+
+        if (!extractedText || extractedText.trim().length === 0) {
+          throw new Error('No text could be extracted from the PDF');
+        }
+
+        // Run BOQ generation chain
+        console.log('Running BOQ generation chain...');
+        boqExtraction = await this.boqChain.run(extractedText);
+      } else {
+        throw new Error(`Unsupported file type: ${mimeType}`);
       }
 
-      // Step 2: Create tender record in database
+      // Create tender record in database
       console.log('Creating tender record...');
       const tender = await prisma.tender.create({
         data: {
@@ -58,11 +82,7 @@ export class TenderService {
         },
       });
 
-      // Step 3: Run BOQ generation chain
-      console.log('Running BOQ generation chain...');
-      const boqExtraction = await this.boqChain.run(extractedText);
-
-      // Step 4: Save BOQ items to database
+      // Save BOQ items to database
       console.log('Saving BOQ items...');
       const boqItems = boqExtraction.items.map((item) => ({
         tenderId: tender.id,
@@ -79,7 +99,7 @@ export class TenderService {
         data: boqItems,
       });
 
-      // Step 5: Update tender status
+      // Update tender status
       await prisma.tender.update({
         where: { id: tender.id },
         data: { status: 'completed' },
@@ -131,5 +151,18 @@ export class TenderService {
     return await prisma.tender.delete({
       where: { id: tenderId },
     });
+  }
+
+  /**
+   * Check if a file is an Excel file based on MIME type
+   * @param mimeType MIME type of the file
+   * @returns True if file is Excel format
+   */
+  private isExcelFile(mimeType: string): boolean {
+    const excelMimeTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+    ];
+    return excelMimeTypes.includes(mimeType);
   }
 }

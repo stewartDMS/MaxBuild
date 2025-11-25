@@ -46,8 +46,14 @@ export function UploadArea({
   const handleFileSelect = useCallback(
     (file: File) => {
       // Validate file type
-      if (file.type !== 'application/pdf') {
-        onUploadError?.('Only PDF files are allowed');
+      const allowedTypes = [
+        'application/pdf',
+        'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+        'application/vnd.ms-excel', // .xls
+      ];
+      
+      if (!allowedTypes.includes(file.type)) {
+        onUploadError?.('Only PDF and Excel files (.pdf, .xlsx, .xls) are allowed');
         return;
       }
 
@@ -177,7 +183,7 @@ export function UploadArea({
           type="file"
           ref={fileInputRef}
           onChange={handleFileInputChange}
-          accept="application/pdf"
+          accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls"
           style={{ display: 'none' }}
           aria-hidden="true"
         />
@@ -213,7 +219,7 @@ export function UploadArea({
         {isUploading ? (
           <Box sx={{ width: '100%', maxWidth: 400, mb: 3 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-              Extracting Bill of Quantities from your PDF...
+              Extracting Bill of Quantities from your document...
             </Typography>
             <LinearProgress
               variant={uploadProgress > 0 ? 'determinate' : 'indeterminate'}
@@ -227,8 +233,8 @@ export function UploadArea({
           </Box>
         ) : (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
-            Drag and drop your PDF file here, or click the button below to browse files.
-            Supported format: PDF (max 10MB)
+            Drag and drop your tender document here, or click the button below to browse files.
+            Supported formats: PDF, Excel (.xlsx, .xls) - max 10MB
           </Typography>
         )}
 
@@ -240,7 +246,7 @@ export function UploadArea({
           onClick={handleBrowseClick}
           size="large"
           disabled={isUploading}
-          aria-label={isUploading ? 'Upload in progress' : 'Browse and upload PDF files'}
+          aria-label={isUploading ? 'Upload in progress' : 'Browse and upload PDF or Excel files'}
         >
           {isUploading ? 'Uploading...' : 'Browse Files'}
         </Button>

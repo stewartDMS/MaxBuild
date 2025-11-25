@@ -12,9 +12,10 @@ This repository contains:
 
 ## Features
 
-- 📄 **PDF Processing**: Upload and extract text from tender PDF documents
+- 📄 **Document Processing**: Upload and extract text from tender PDF documents and Excel spreadsheets
 - 🤖 **AI-Powered BOQ Extraction**: Automatically generate Bill of Quantities using OpenAI GPT-4
-- 📊 **Structured Output**: Zod-validated schemas ensure consistent data structure
+- 📊 **Multi-Format Support**: Process both PDF (.pdf) and Excel (.xlsx, .xls) tender documents
+- 📋 **Structured Output**: Zod-validated schemas ensure consistent data structure
 - 💾 **PostgreSQL Storage**: Persist tenders and BOQ items using Prisma ORM
 - 🔄 **RESTful API**: Clean, well-documented REST endpoints
 
@@ -30,6 +31,7 @@ This repository contains:
 - **Zod** - Schema validation
 - **Multer** - File upload handling
 - **pdf-parse** - PDF text extraction
+- **xlsx** - Excel file parsing and data extraction
 
 ### Frontend
 - **React 19** - UI library
@@ -97,11 +99,14 @@ MaxBuild/
 │   │   ├── schemas/        # Zod schemas for structured output
 │   │   │   └── boq.schema.ts
 │   │   └── loaders/        # Document loaders
-│   │       └── pdf.loader.ts
+│   │       ├── pdf.loader.ts
+│   │       └── excel.loader.ts
 │   ├── controllers/        # Request handlers
 │   │   └── tender.controller.ts
 │   ├── services/          # Business logic
-│   │   └── tender.service.ts
+│   │   ├── tender.service.ts
+│   │   ├── excel.service.ts
+│   │   └── langgraph.service.ts
 │   ├── routes/            # API routes
 │   │   ├── index.ts
 │   │   └── tender.routes.ts
@@ -230,9 +235,10 @@ The production build will be in the `client/dist` directory.
 
 #### Upload Tender
 - **POST** `/api/tenders/upload`
-  - Upload a tender PDF and extract BOQ
+  - Upload a tender PDF or Excel file and extract BOQ
   - **Body**: `multipart/form-data`
-    - `tender`: PDF file (max 10MB)
+    - `tender`: PDF or Excel file (max 10MB)
+    - Supported formats: `.pdf`, `.xlsx`, `.xls`
   - **Response**:
     ```json
     {
@@ -293,11 +299,16 @@ The production build will be in the `client/dist` directory.
 
 ## Example Usage
 
-### Upload a Tender PDF
+### Upload a Tender PDF or Excel
 
 ```bash
+# Upload PDF
 curl -X POST http://localhost:3000/api/tenders/upload \
   -F "tender=@path/to/tender.pdf"
+
+# Upload Excel
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@path/to/tender.xlsx"
 ```
 
 ### Get All Tenders
@@ -389,7 +400,7 @@ The backend API will be at `http://localhost:3000` and the frontend at `http://l
 
 ### Document Ingest Testing
 
-The document ingest feature allows you to upload PDF tender documents and automatically extract Bill of Quantities (BOQ) data using AI.
+The document ingest feature allows you to upload PDF or Excel tender documents and automatically extract Bill of Quantities (BOQ) data using AI.
 
 #### Prerequisites for Document Ingest
 
@@ -406,8 +417,8 @@ The document ingest feature allows you to upload PDF tender documents and automa
 2. Navigate to `http://localhost:5173` in your browser
 3. In the Dashboard, locate the "Quick Upload" section
 4. Either:
-   - **Drag and drop** a PDF file onto the upload area, or
-   - **Click "Browse Files"** and select a PDF file
+   - **Drag and drop** a PDF or Excel file onto the upload area, or
+   - **Click "Browse Files"** and select a PDF or Excel file (.pdf, .xlsx, .xls)
 5. Wait for the upload and BOQ extraction to complete
 6. A success notification will appear with the number of BOQ items extracted
 7. The extracted data is stored in the database and can be viewed via the API
@@ -418,6 +429,10 @@ The document ingest feature allows you to upload PDF tender documents and automa
 # Upload a tender PDF
 curl -X POST http://localhost:3000/api/tenders/upload \
   -F "tender=@path/to/your-tender.pdf"
+
+# Upload a tender Excel
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@path/to/your-tender.xlsx"
 
 # Expected response:
 # {
@@ -443,12 +458,26 @@ curl http://localhost:3000/api/tenders
 curl http://localhost:3000/api/tenders/{tender-id}
 ```
 
+#### Supported Excel Formats
+
+The system supports the following Excel formats:
+- **XLSX** (.xlsx) - Office Open XML Spreadsheet (Excel 2007+)
+- **XLS** (.xls) - Excel Binary File Format (Excel 97-2003)
+
+For best results with Excel files:
+- Use clear column headers (Item, Description, Quantity, Unit, Rate, Amount)
+- Keep data structured in tabular format
+- Avoid merged cells in data rows
+- Remove password protection from files
+- Ensure sheets contain actual data
+
 #### Error Handling
 
 The upload feature handles the following error cases:
-- **Invalid file type**: Only PDF files are accepted
+- **Invalid file type**: Only PDF and Excel files are accepted
 - **File too large**: Maximum file size is 10MB
-- **Empty PDF**: PDFs with no extractable text are rejected
+- **Empty document**: Documents with no extractable text/data are rejected
+- **Malformed Excel**: Corrupted or password-protected Excel files are rejected
 - **AI extraction errors**: Network or API errors during BOQ extraction
 
 All errors are displayed to the user via toast notifications in the frontend.
