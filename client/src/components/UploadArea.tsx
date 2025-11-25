@@ -11,7 +11,8 @@ import {
   type SxProps,
   type Theme,
 } from '@mui/material';
-import { Upload as UploadIcon, CheckCircle as CheckCircleIcon, Error as ErrorIcon } from '@mui/icons-material';
+import { Upload as UploadIcon } from '@mui/icons-material';
+import { uploadTender } from '../api/tenderApi';
 
 export interface UploadResult {
   success: boolean;
@@ -60,35 +61,29 @@ export function UploadArea({
       // Trigger upload
       onUploadStart?.();
 
-      // The actual upload will be handled by the parent component
-      // We just validate and pass the file up
-      import('../api/tenderApi').then(({ uploadTender }) => {
-        uploadTender(file, (progress) => {
-          // Progress is tracked via the parent's state
-          console.log(`Upload progress: ${progress}%`);
-        })
-          .then((response) => {
-            if (response.success && response.data) {
-              onUploadComplete?.({
-                success: true,
-                fileName: response.data.fileName,
-                itemCount: response.data.itemCount,
-                tenderId: response.data.tenderId,
-              });
-            } else {
-              onUploadComplete?.({
-                success: false,
-                error: response.error?.message || 'Upload failed',
-              });
-            }
-          })
-          .catch((error) => {
+      // Perform the upload
+      uploadTender(file)
+        .then((response) => {
+          if (response.success && response.data) {
+            onUploadComplete?.({
+              success: true,
+              fileName: response.data.fileName,
+              itemCount: response.data.itemCount,
+              tenderId: response.data.tenderId,
+            });
+          } else {
             onUploadComplete?.({
               success: false,
-              error: error.message || 'Upload failed',
+              error: response.error?.message || 'Upload failed',
             });
+          }
+        })
+        .catch((error) => {
+          onUploadComplete?.({
+            success: false,
+            error: error.message || 'Upload failed',
           });
-      });
+        });
     },
     [onUploadStart, onUploadComplete, onUploadError]
   );
@@ -253,8 +248,3 @@ export function UploadArea({
     </Card>
   );
 }
-
-/**
- * Export icons for use in parent components
- */
-export { CheckCircleIcon, ErrorIcon };

@@ -116,10 +116,10 @@ export async function uploadTender(
             error: { message: response.error?.message || 'Upload failed' },
           });
         }
-      } catch {
+      } catch (parseError) {
         resolve({
           success: false,
-          error: { message: 'Failed to parse response' },
+          error: { message: `Failed to parse response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}` },
         });
       }
     });
@@ -153,10 +153,10 @@ export async function listTenders(
     );
     const data = await response.json();
     return data;
-  } catch {
+  } catch (error) {
     return {
       success: false,
-      error: { message: 'Failed to fetch tenders' },
+      error: { message: `Failed to fetch tenders: ${error instanceof Error ? error.message : 'Unknown error'}` },
     };
   }
 }
@@ -173,10 +173,10 @@ export async function getTender(
     const response = await fetch(`${API_BASE_URL}/tenders/${id}`);
     const data = await response.json();
     return data;
-  } catch {
+  } catch (error) {
     return {
       success: false,
-      error: { message: 'Failed to fetch tender' },
+      error: { message: `Failed to fetch tender: ${error instanceof Error ? error.message : 'Unknown error'}` },
     };
   }
 }
@@ -195,10 +195,10 @@ export async function deleteTender(
     });
     const data = await response.json();
     return data;
-  } catch {
+  } catch (error) {
     return {
       success: false,
-      error: { message: 'Failed to delete tender' },
+      error: { message: `Failed to delete tender: ${error instanceof Error ? error.message : 'Unknown error'}` },
     };
   }
 }
