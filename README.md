@@ -167,6 +167,7 @@ Edit `.env` and add your configuration:
 PORT=3000
 NODE_ENV=development
 OPENAI_API_KEY=your_openai_api_key_here
+LANGGRAPH_API_KEY=your_langgraph_api_key_here
 DATABASE_URL="postgresql://user:password@localhost:5432/maxbuild?schema=public"
 MAX_FILE_SIZE=10485760
 ```
@@ -266,6 +267,30 @@ The production build will be in the `client/dist` directory.
 - **DELETE** `/api/tenders/:id`
   - Delete a tender and all associated BOQ items
 
+### LangGraph Operations
+
+#### Get Assistant
+- **GET** `/api/langgraph/assistants/:id`
+  - Fetch an assistant by ID from the LangGraph API
+  - **Path Parameters**:
+    - `id`: The unique identifier of the assistant
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "assistant_id": "uuid",
+        "graph_id": "string",
+        "config": {},
+        "created_at": "timestamp",
+        "updated_at": "timestamp",
+        "metadata": {},
+        "version": 1,
+        "name": "string"
+      }
+    }
+    ```
+
 ## Example Usage
 
 ### Upload a Tender PDF
@@ -285,6 +310,12 @@ curl http://localhost:3000/api/tenders
 
 ```bash
 curl http://localhost:3000/api/tenders/{tender-id}
+```
+
+### Get LangGraph Assistant
+
+```bash
+curl http://localhost:3000/api/langgraph/assistants/{assistant-id}
 ```
 
 ## BOQ Schema
