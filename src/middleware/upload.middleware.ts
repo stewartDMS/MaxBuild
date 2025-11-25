@@ -13,12 +13,19 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter to accept only PDFs
+// File filter to accept PDFs, Excel files, and CSV files
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  if (file.mimetype === 'application/pdf') {
+  const allowedMimeTypes = [
+    'application/pdf',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+    'application/vnd.ms-excel', // .xls
+    'text/csv', // .csv
+  ];
+  
+  if (allowedMimeTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Only PDF files are allowed'));
+    cb(new Error('Only PDF, Excel (.xlsx, .xls), and CSV files are allowed'));
   }
 };
 
