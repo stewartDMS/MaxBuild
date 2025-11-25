@@ -1,11 +1,12 @@
-import { Box, Grid2 as Grid, Typography, useTheme } from '@mui/material';
+import { useState, useCallback } from 'react';
+import { Box, Grid2 as Grid, Typography, useTheme, Snackbar, Alert, AlertTitle } from '@mui/material';
 import {
   Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
   Pending as PendingIcon,
   AttachMoney as AttachMoneyIcon,
 } from '@mui/icons-material';
-import { StatCard, TenderCard, UploadArea, RecentActivity } from '../components';
+import { StatCard, TenderCard, UploadArea, RecentActivity, type UploadResult } from '../components';
 
 // Sample data - in a real app, this would come from an API
 const sampleTenders = [
@@ -75,6 +76,53 @@ const sampleActivities = [
 
 export function Dashboard() {
   const theme = useTheme();
+  
+  // Upload state management
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Snackbar state for notifications
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success');
+  const [snackbarTitle, setSnackbarTitle] = useState('');
+  const [snackbarMessage, setSnackbarMessage] = useState('');
+
+  // Handle upload start
+  const handleUploadStart = useCallback(() => {
+    setIsUploading(true);
+    setUploadProgress(0);
+  }, []);
+
+  // Handle upload complete (success or failure)
+  const handleUploadComplete = useCallback((result: UploadResult) => {
+    setIsUploading(false);
+    setUploadProgress(100);
+    
+    if (result.success) {
+      setSnackbarSeverity('success');
+      setSnackbarTitle('Upload Successful');
+      setSnackbarMessage(`Successfully extracted ${result.itemCount || 0} BOQ items from "${result.fileName}"`);
+    } else {
+      setSnackbarSeverity('error');
+      setSnackbarTitle('Upload Failed');
+      setSnackbarMessage(result.error || 'An error occurred during upload');
+    }
+    setSnackbarOpen(true);
+  }, []);
+
+  // Handle upload error (validation errors)
+  const handleUploadError = useCallback((error: string) => {
+    setIsUploading(false);
+    setSnackbarSeverity('warning');
+    setSnackbarTitle('Upload Error');
+    setSnackbarMessage(error);
+    setSnackbarOpen(true);
+  }, []);
+
+  // Close snackbar
+  const handleSnackbarClose = useCallback(() => {
+    setSnackbarOpen(false);
+  }, []);
 
   return (
     <Box>
@@ -135,7 +183,13 @@ export function Dashboard() {
         <Typography variant="h6" component="h3" gutterBottom fontWeight={600}>
           Quick Upload
         </Typography>
-        <UploadArea />
+        <UploadArea
+          onUploadStart={handleUploadStart}
+          onUploadComplete={handleUploadComplete}
+          onUploadError={handleUploadError}
+          isUploading={isUploading}
+          uploadProgress={uploadProgress}
+        />
       </Box>
 
       {/* Recent Tenders and Activity */}
@@ -188,6 +242,24 @@ export function Dashboard() {
           <RecentActivity activities={sampleActivities} onViewAll={() => console.log('View all activities')} />
         </Grid>
       </Grid>
+
+      {/* Upload notification snackbar */}
+      <Snackbar
+        open={snackbarOpen}
+        autoHideDuration={6000}
+        onClose={handleSnackbarClose}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          onClose={handleSnackbarClose}
+          severity={snackbarSeverity}
+          variant="filled"
+          sx={{ width: '100%' }}
+        >
+          <AlertTitle>{snackbarTitle}</AlertTitle>
+          {snackbarMessage}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

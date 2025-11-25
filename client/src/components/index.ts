@@ -1,5 +1,5 @@
 export { StatCard } from './StatCard';
 export { StatusBadge } from './StatusBadge';
 export { TenderCard } from './TenderCard';
-export { UploadArea } from './UploadArea';
+export { UploadArea, type UploadResult } from './UploadArea';
 export { RecentActivity } from './RecentActivity';

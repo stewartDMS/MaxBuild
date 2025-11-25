@@ -387,6 +387,72 @@ npm run dev
 
 The backend API will be at `http://localhost:3000` and the frontend at `http://localhost:5173`.
 
+### Document Ingest Testing
+
+The document ingest feature allows you to upload PDF tender documents and automatically extract Bill of Quantities (BOQ) data using AI.
+
+#### Prerequisites for Document Ingest
+
+1. **Backend setup**: Ensure the backend is running with:
+   - PostgreSQL database connected (`DATABASE_URL` configured)
+   - OpenAI API key configured (`OPENAI_API_KEY` in `.env`)
+   - Prisma migrations applied (`npm run prisma:migrate`)
+
+2. **Uploads directory**: The `uploads/` directory must exist in the project root (created automatically on first upload)
+
+#### Testing via Frontend (Recommended)
+
+1. Start both backend and frontend as described above
+2. Navigate to `http://localhost:5173` in your browser
+3. In the Dashboard, locate the "Quick Upload" section
+4. Either:
+   - **Drag and drop** a PDF file onto the upload area, or
+   - **Click "Browse Files"** and select a PDF file
+5. Wait for the upload and BOQ extraction to complete
+6. A success notification will appear with the number of BOQ items extracted
+7. The extracted data is stored in the database and can be viewed via the API
+
+#### Testing via API (curl)
+
+```bash
+# Upload a tender PDF
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@path/to/your-tender.pdf"
+
+# Expected response:
+# {
+#   "success": true,
+#   "data": {
+#     "tenderId": "uuid-here",
+#     "fileName": "your-tender.pdf",
+#     "status": "completed",
+#     "boqExtraction": {
+#       "projectName": "...",
+#       "items": [...],
+#       "totalEstimatedCost": 1000000,
+#       "currency": "USD"
+#     },
+#     "itemCount": 25
+#   }
+# }
+
+# List all uploaded tenders
+curl http://localhost:3000/api/tenders
+
+# Get a specific tender with BOQ items
+curl http://localhost:3000/api/tenders/{tender-id}
+```
+
+#### Error Handling
+
+The upload feature handles the following error cases:
+- **Invalid file type**: Only PDF files are accepted
+- **File too large**: Maximum file size is 10MB
+- **Empty PDF**: PDFs with no extractable text are rejected
+- **AI extraction errors**: Network or API errors during BOQ extraction
+
+All errors are displayed to the user via toast notifications in the frontend.
+
 ## Deployment
 
 ### Backend Deployment
