@@ -43,6 +43,9 @@ app.get('/', (req, res) => {
         get: 'GET /api/tenders/:id',
         delete: 'DELETE /api/tenders/:id',
       },
+      langgraph: {
+        getAssistant: 'GET /api/langgraph/assistants/:id',
+      },
     },
   });
 });

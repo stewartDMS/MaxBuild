@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import tenderRoutes from './tender.routes';
+import langgraphRoutes from './langgraph.routes';
 
 const router = Router();
 
@@ -14,5 +15,6 @@ router.get('/health', (req, res) => {
 
 // API routes
 router.use('/tenders', tenderRoutes);
+router.use('/langgraph', langgraphRoutes);
 
 export default router;
