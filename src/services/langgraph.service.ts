@@ -63,12 +63,7 @@ export class LangGraphService {
    * @returns The assistant data
    */
   async getAssistant(assistantId: string): Promise<AssistantResponse> {
-    try {
-      const assistant = await this.client.assistants.get(assistantId);
-      return assistant as AssistantResponse;
-    } catch (error) {
-      console.error('Error fetching assistant from LangGraph:', error);
-      throw error;
-    }
+    const assistant = await this.client.assistants.get(assistantId);
+    return assistant as AssistantResponse;
   }
 }

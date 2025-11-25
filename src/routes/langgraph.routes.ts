@@ -14,13 +14,6 @@ router.get(
     try {
       const { id } = req.params;
 
-      if (!id) {
-        return res.status(400).json({
-          success: false,
-          error: { message: 'Assistant ID is required' },
-        });
-      }
-
       const assistant = await langGraphService.getAssistant(id);
 
       res.status(200).json({
