@@ -2,6 +2,7 @@ import prisma from '../lib/prisma';
 import { PDFLoader } from '../ai/loaders/pdf.loader';
 import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import { ExcelService } from './excel.service';
+import { CSVService } from './csv.service';
 import type { BOQExtraction } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -19,15 +20,17 @@ export class TenderService {
   private pdfLoader: PDFLoader;
   private boqChain: BOQGenerationChain;
   private excelService: ExcelService;
+  private csvService: CSVService;
 
   constructor() {
     this.pdfLoader = new PDFLoader();
     this.boqChain = new BOQGenerationChain();
     this.excelService = new ExcelService();
+    this.csvService = new CSVService();
   }
 
   /**
-   * Process an uploaded tender PDF or Excel file
+   * Process an uploaded tender PDF, Excel, or CSV file
    * @param filePath Path to the uploaded file
    * @param fileName Original file name
    * @param fileSize File size in bytes
@@ -46,9 +49,16 @@ export class TenderService {
 
       // Detect file type and dispatch to appropriate parser
       const isExcel = this.isExcelFile(mimeType);
+      const isCSV = this.isCSVFile(mimeType);
       const isPDF = mimeType === 'application/pdf';
 
-      if (isExcel) {
+      if (isCSV) {
+        // Process CSV file
+        console.log('Processing CSV file...');
+        const result = await this.csvService.processCSV(filePath);
+        extractedText = result.extractedText;
+        boqExtraction = result.boqExtraction;
+      } else if (isExcel) {
         // Process Excel file
         console.log('Processing Excel file...');
         const result = await this.excelService.processExcel(filePath);
@@ -164,5 +174,14 @@ export class TenderService {
       'application/vnd.ms-excel', // .xls
     ];
     return excelMimeTypes.includes(mimeType);
+  }
+
+  /**
+   * Check if a file is a CSV file based on MIME type
+   * @param mimeType MIME type of the file
+   * @returns True if file is CSV format
+   */
+  private isCSVFile(mimeType: string): boolean {
+    return mimeType === 'text/csv';
   }
 }

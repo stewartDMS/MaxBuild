@@ -50,10 +50,11 @@ export function UploadArea({
         'application/pdf',
         'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
         'application/vnd.ms-excel', // .xls
+        'text/csv', // .csv
       ];
       
       if (!allowedTypes.includes(file.type)) {
-        onUploadError?.('Only PDF and Excel files (.pdf, .xlsx, .xls) are allowed');
+        onUploadError?.('Only PDF, Excel (.xlsx, .xls), and CSV files are allowed');
         return;
       }
 
@@ -183,7 +184,7 @@ export function UploadArea({
           type="file"
           ref={fileInputRef}
           onChange={handleFileInputChange}
-          accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls"
+          accept="application/pdf,.pdf,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xlsx,application/vnd.ms-excel,.xls,text/csv,.csv"
           style={{ display: 'none' }}
           aria-hidden="true"
         />
@@ -234,7 +235,7 @@ export function UploadArea({
         ) : (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
             Drag and drop your tender document here, or click the button below to browse files.
-            Supported formats: PDF, Excel (.xlsx, .xls) - max 10MB
+            Supported formats: PDF, Excel (.xlsx, .xls), CSV - max 10MB
           </Typography>
         )}
 
@@ -246,7 +247,7 @@ export function UploadArea({
           onClick={handleBrowseClick}
           size="large"
           disabled={isUploading}
-          aria-label={isUploading ? 'Upload in progress' : 'Browse and upload PDF or Excel files'}
+          aria-label={isUploading ? 'Upload in progress' : 'Browse and upload PDF, Excel, or CSV files'}
         >
           {isUploading ? 'Uploading...' : 'Browse Files'}
         </Button>
