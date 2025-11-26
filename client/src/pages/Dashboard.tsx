@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Box, Grid2 as Grid, Typography, useTheme, Snackbar, Alert, AlertTitle } from '@mui/material';
+import { Box, Grid2 as Grid, Typography, useTheme, Snackbar, Alert, AlertTitle, List, ListItem, ListItemText } from '@mui/material';
 import {
   Description as DescriptionIcon,
   CheckCircle as CheckCircleIcon,
@@ -7,6 +7,7 @@ import {
   AttachMoney as AttachMoneyIcon,
 } from '@mui/icons-material';
 import { StatCard, TenderCard, UploadArea, RecentActivity, type UploadResult } from '../components';
+import { formatErrorMessage, getErrorSeverity, formatErrorDetails } from '../utils/errorUtils';
 
 // Sample data - in a real app, this would come from an API
 const sampleTenders = [
@@ -86,6 +87,7 @@ export function Dashboard() {
   const [snackbarSeverity, setSnackbarSeverity] = useState<'success' | 'error' | 'warning' | 'info'>('success');
   const [snackbarTitle, setSnackbarTitle] = useState('');
   const [snackbarMessage, setSnackbarMessage] = useState('');
+  const [snackbarDetails, setSnackbarDetails] = useState<string[]>([]);
 
   // Handle upload start
   const handleUploadStart = useCallback(() => {
@@ -102,10 +104,34 @@ export function Dashboard() {
       setSnackbarSeverity('success');
       setSnackbarTitle('Upload Successful');
       setSnackbarMessage(`Successfully extracted ${result.itemCount || 0} BOQ items from "${result.fileName}"`);
+      setSnackbarDetails([]);
     } else {
-      setSnackbarSeverity('error');
-      setSnackbarTitle('Upload Failed');
-      setSnackbarMessage(result.error || 'An error occurred during upload');
+      // Format error with structured details
+      if (result.errorResponse) {
+        const formatted = formatErrorMessage(result.errorResponse);
+        const severity = getErrorSeverity(result.errorResponse.reason);
+        const details = formatErrorDetails(result.errorResponse);
+        
+        setSnackbarSeverity(severity);
+        setSnackbarTitle(formatted.title);
+        setSnackbarMessage(formatted.message);
+        
+        // Combine suggestion and details
+        const allDetails: string[] = [];
+        if (formatted.suggestion) {
+          allDetails.push(formatted.suggestion);
+        }
+        if (details.length > 0) {
+          allDetails.push(...details);
+        }
+        setSnackbarDetails(allDetails);
+      } else {
+        // Fallback for non-structured errors
+        setSnackbarSeverity('error');
+        setSnackbarTitle('Upload Failed');
+        setSnackbarMessage(result.error || 'An error occurred during upload');
+        setSnackbarDetails([]);
+      }
     }
     setSnackbarOpen(true);
   }, []);
@@ -246,7 +272,7 @@ export function Dashboard() {
       {/* Upload notification snackbar */}
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={6000}
+        autoHideDuration={snackbarSeverity === 'success' ? 6000 : 10000}
         onClose={handleSnackbarClose}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
       >
@@ -254,10 +280,28 @@ export function Dashboard() {
           onClose={handleSnackbarClose}
           severity={snackbarSeverity}
           variant="filled"
-          sx={{ width: '100%' }}
+          sx={{ 
+            width: '100%',
+            maxWidth: 500,
+          }}
         >
           <AlertTitle>{snackbarTitle}</AlertTitle>
           {snackbarMessage}
+          {snackbarDetails.length > 0 && (
+            <List dense sx={{ mt: 1, pl: 0 }}>
+              {snackbarDetails.map((detail, index) => (
+                <ListItem key={index} sx={{ py: 0, pl: 0 }}>
+                  <ListItemText 
+                    primary={detail}
+                    primaryTypographyProps={{
+                      variant: 'body2',
+                      sx: { fontSize: '0.875rem' }
+                    }}
+                  />
+                </ListItem>
+              ))}
+            </List>
+          )}
         </Alert>
       </Snackbar>
     </Box>

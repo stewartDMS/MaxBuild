@@ -242,7 +242,7 @@ The production build will be in the `client/dist` directory.
   - **Body**: `multipart/form-data`
     - `tender`: PDF, Excel, or CSV file (max 10MB)
     - Supported formats: `.pdf`, `.xlsx`, `.xls`, `.csv`
-  - **Response**:
+  - **Success Response**:
     ```json
     {
       "success": true,
@@ -260,6 +260,25 @@ The production build will be in the `client/dist` directory.
       }
     }
     ```
+  - **Error Response**:
+    ```json
+    {
+      "success": false,
+      "error": {
+        "message": "The Excel file appears to be corrupted or malformed",
+        "reason": "CORRUPT_FILE",
+        "details": {
+          "fileType": "Excel",
+          "suggestion": "Please ensure the file is not corrupted and try again"
+        }
+      }
+    }
+    ```
+  - **Status Codes**:
+    - `200`: Success
+    - `400`: Validation error (file type, size, structure, etc.)
+    - `413`: File too large
+    - `500`: Server or AI extraction error
 
 #### List Tenders
 - **GET** `/api/tenders?skip=0&take=10`
@@ -316,6 +335,140 @@ curl -X POST http://localhost:3000/api/tenders/upload \
 # Upload CSV
 curl -X POST http://localhost:3000/api/tenders/upload \
   -F "tender=@path/to/tender.csv"
+```
+
+**Success Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "tenderId": "abc123",
+    "fileName": "tender.pdf",
+    "status": "completed",
+    "boqExtraction": {
+      "projectName": "Highway Construction",
+      "items": [
+        {
+          "itemNumber": "1",
+          "description": "Excavation of foundation",
+          "quantity": 100,
+          "unit": "m3",
+          "unitRate": 50,
+          "amount": 5000
+        }
+      ],
+      "totalEstimatedCost": 5000,
+      "currency": "USD"
+    },
+    "itemCount": 1
+  }
+}
+```
+
+### Error Response Examples
+
+**Invalid File Type:**
+```bash
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@document.docx"
+
+# Response (400):
+{
+  "success": false,
+  "error": {
+    "message": "File type 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' is not supported",
+    "reason": "UNSUPPORTED_FILE_TYPE",
+    "details": {
+      "fileType": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "supportedTypes": [
+        "PDF (.pdf)",
+        "Excel (.xlsx, .xls)",
+        "CSV (.csv)"
+      ],
+      "suggestion": "Please upload one of the supported file types: PDF (.pdf), Excel (.xlsx, .xls), CSV (.csv)"
+    }
+  }
+}
+```
+
+**Empty File:**
+```bash
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@empty.pdf"
+
+# Response (400):
+{
+  "success": false,
+  "error": {
+    "message": "The PDF file is empty or contains no extractable data",
+    "reason": "EMPTY_FILE",
+    "details": {
+      "fileType": "PDF",
+      "details": "No text could be extracted from the PDF",
+      "suggestion": "Please ensure the file contains data and try again"
+    }
+  }
+}
+```
+
+**Password Protected Excel:**
+```bash
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@protected.xlsx"
+
+# Response (400):
+{
+  "success": false,
+  "error": {
+    "message": "Cannot process password-protected Excel files",
+    "reason": "PASSWORD_PROTECTED_FILE",
+    "details": {
+      "fileType": "Excel",
+      "suggestion": "Please remove the password protection and try again"
+    }
+  }
+}
+```
+
+**File Too Large:**
+```bash
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@large-tender.pdf"
+
+# Response (413):
+{
+  "success": false,
+  "error": {
+    "message": "File size 15.50MB exceeds the maximum limit of 10.00MB",
+    "reason": "FILE_SIZE_LIMIT_EXCEEDED",
+    "details": {
+      "fileSize": 16252928,
+      "maxSize": 10485760,
+      "fileSizeMB": "15.50",
+      "maxSizeMB": "10.00",
+      "suggestion": "Please upload a file smaller than 10.00MB"
+    }
+  }
+}
+```
+
+**AI Extraction Error:**
+```bash
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@tender.pdf"
+
+# Response (500) - if OpenAI API key is invalid:
+{
+  "success": false,
+  "error": {
+    "message": "OpenAI API authentication failed",
+    "reason": "AI_EXTRACTION_FAILED",
+    "details": {
+      "reason": "Invalid or missing API key",
+      "suggestion": "Please check your OPENAI_API_KEY environment variable"
+    }
+  }
+}
 ```
 
 ### Get All Tenders
@@ -493,15 +646,220 @@ For best results with Excel and CSV files:
 
 #### Error Handling
 
-The upload feature handles the following error cases:
-- **Invalid file type**: Only PDF, Excel, and CSV files are accepted
-- **File too large**: Maximum file size is 10MB
-- **Empty document**: Documents with no extractable text/data are rejected
-- **Malformed Excel/CSV**: Corrupted or improperly formatted files are rejected
-- **Password-protected files**: Excel files with password protection are rejected
-- **AI extraction errors**: Network or API errors during BOQ extraction
+The system provides comprehensive error handling with detailed feedback for various issues:
 
-All errors are displayed to the user via toast notifications in the frontend.
+**File Validation Errors:**
+- **Invalid file type**: Only PDF (.pdf), Excel (.xlsx, .xls), and CSV (.csv) files are accepted
+- **File too large**: Maximum file size is 10MB (configurable via `MAX_FILE_SIZE` env variable)
+- **No file uploaded**: User must select a file before uploading
+
+**File Content Errors:**
+- **Empty document**: Documents with no extractable text/data are rejected
+- **Corrupted file**: PDF, Excel, or CSV files that are damaged or malformed
+- **Password-protected files**: Excel files with password protection cannot be processed
+- **Invalid structure**: Files that don't contain BOQ-like data structures
+
+**Processing Errors:**
+- **AI extraction errors**: OpenAI API failures (authentication, rate limits, network issues)
+- **Parsing errors**: Issues reading or interpreting file content
+- **Missing data**: Files missing required columns or information
+
+**Error Response Format:**
+
+All API errors return a consistent JSON structure:
+
+```json
+{
+  "success": false,
+  "error": {
+    "message": "Human-readable error message",
+    "reason": "ERROR_CODE",
+    "details": {
+      "suggestion": "How to fix the issue",
+      "additionalInfo": "Context-specific details"
+    }
+  }
+}
+```
+
+**Error Codes:**
+
+| Code | Description | User Action |
+|------|-------------|-------------|
+| `FILE_VALIDATION_ERROR` | File failed validation | Check file requirements |
+| `UNSUPPORTED_FILE_TYPE` | File type not supported | Use PDF, Excel, or CSV |
+| `CORRUPT_FILE` | File is corrupted | Try re-saving or re-downloading the file |
+| `PASSWORD_PROTECTED_FILE` | File is password-protected | Remove password protection |
+| `EMPTY_FILE` | File contains no data | Ensure file has content |
+| `INVALID_STRUCTURE` | File structure unsuitable | Check file format and columns |
+| `FILE_SIZE_LIMIT_EXCEEDED` | File too large | Reduce file size or split into parts |
+| `AI_EXTRACTION_FAILED` | AI service error | Check API key or try again later |
+| `PARSING_ERROR` | File parsing failed | Verify file is not corrupted |
+
+All errors are displayed to the user via detailed toast notifications in the frontend, including:
+- Error title and description
+- Suggested actions to resolve the issue
+- Additional context when available
+
+## Troubleshooting
+
+### Common Upload Issues
+
+#### "Unsupported File Type"
+**Problem:** The file type is not supported.
+
+**Solution:**
+- Ensure your file is one of the supported formats:
+  - PDF: `.pdf`
+  - Excel: `.xlsx` or `.xls`
+  - CSV: `.csv`
+- Check the file extension matches the actual file format
+- If the file was renamed, ensure it's in the correct format
+
+#### "File Too Large"
+**Problem:** File exceeds the 10MB size limit.
+
+**Solution:**
+- Compress the file or reduce its size
+- Split large documents into smaller parts
+- Remove unnecessary pages, sheets, or images
+- For Excel/CSV: Remove unnecessary columns or rows
+
+#### "Corrupted File" or "Password Protected"
+**Problem:** File cannot be read or is password-protected.
+
+**Solution:**
+- For PDF: Try opening in Adobe Acrobat and saving as a new file
+- For Excel: Remove password protection (Review → Unprotect)
+- Re-download the file if it may be corrupted during download
+- Save as a new file in Excel/PDF software
+
+#### "Empty File" or "No Data Found"
+**Problem:** File contains no extractable content.
+
+**Solution:**
+- Ensure the PDF contains actual text (not just images)
+- For scanned PDFs: Use OCR (Optical Character Recognition) first
+- For Excel/CSV: Verify there are data rows (not just headers)
+- Check that sheets/pages aren't blank
+
+#### "Invalid File Structure"
+**Problem:** File doesn't contain recognizable BOQ data.
+
+**Solution:**
+- Ensure your file has BOQ-like structure with columns such as:
+  - Item Number
+  - Description
+  - Quantity
+  - Unit
+  - Rate
+  - Amount
+- Format data in a tabular structure
+- Use clear column headers in the first row
+
+#### "AI Extraction Failed"
+**Problem:** The AI service encountered an error.
+
+**Common Causes:**
+- Invalid or missing OpenAI API key
+- API rate limit exceeded
+- Network connectivity issues
+- OpenAI service outage
+
+**Solution:**
+- Verify `OPENAI_API_KEY` is set correctly in `.env`
+- Check your OpenAI account usage and limits
+- Wait a few minutes and try again
+- Check OpenAI status page for service issues
+
+### Excel/CSV Specific Issues
+
+**Problem:** Excel file won't upload
+
+**Checklist:**
+- ✓ File is `.xlsx` or `.xls` format
+- ✓ File is not password-protected
+- ✓ File contains at least one sheet with data
+- ✓ First row contains headers
+- ✓ Data starts from row 2
+- ✓ No merged cells in data rows
+
+**Problem:** CSV file parsing errors
+
+**Checklist:**
+- ✓ File uses UTF-8 encoding
+- ✓ Delimiter is comma (`,`)
+- ✓ Quotes are properly escaped
+- ✓ First row contains headers
+- ✓ No extra blank lines
+
+### PDF Specific Issues
+
+**Problem:** PDF text extraction fails
+
+**Solutions:**
+- Ensure PDF contains selectable text (not scanned images)
+- For scanned PDFs:
+  1. Use Adobe Acrobat OCR feature
+  2. Or use online OCR tools
+  3. Save as searchable PDF
+- Check PDF isn't corrupted by opening in multiple PDF readers
+- Try saving PDF as a new file
+
+### Logs and Debugging
+
+**Backend Logs:**
+
+The backend provides structured logging for all operations:
+
+```bash
+# View backend logs in development
+npm run dev
+
+# Look for these log indicators:
+📄 Processing PDF file...       # File type detected
+📊 Loading Excel file...        # Excel processing
+✅ File loaded successfully     # Success
+❌ Error loading file           # Failure
+🤖 Running AI BOQ extraction... # AI processing
+```
+
+**Error Details in Logs:**
+
+Errors include context for debugging:
+- Timestamp
+- File information (name, size, type)
+- Error reason and message
+- Stack trace (in development mode)
+- Request details
+
+**Frontend Error Display:**
+
+The UI shows detailed errors with:
+- Clear error title
+- Descriptive message
+- Actionable suggestions
+- Additional context (file size, supported types, etc.)
+
+### Getting Help
+
+If you encounter persistent issues:
+
+1. **Check the logs** for detailed error information
+2. **Verify your environment**:
+   - Node.js version 18+
+   - All dependencies installed (`npm install`)
+   - Environment variables configured (`.env`)
+   - Database connected
+   - OpenAI API key valid
+3. **Try a sample file** to rule out file-specific issues
+4. **Review the error details** in the UI notification
+5. **Check GitHub issues** for similar problems
+6. **Open a new issue** with:
+   - Error message and code
+   - File type and size
+   - Environment details
+   - Steps to reproduce
 
 ## Deployment
 

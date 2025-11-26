@@ -32,6 +32,15 @@ export interface BOQExtraction {
 }
 
 /**
+ * Standardized error response from backend
+ */
+export interface ErrorResponse {
+  message: string;
+  reason: string;
+  details?: Record<string, any>;
+}
+
+/**
  * Tender upload response from backend
  */
 export interface TenderUploadResponse {
@@ -43,9 +52,7 @@ export interface TenderUploadResponse {
     boqExtraction: BOQExtraction;
     itemCount: number;
   };
-  error?: {
-    message: string;
-  };
+  error?: ErrorResponse;
 }
 
 /**
@@ -74,14 +81,12 @@ export interface ListTendersResponse {
     take: number;
     count: number;
   };
-  error?: {
-    message: string;
-  };
+  error?: ErrorResponse;
 }
 
 /**
- * Upload a tender PDF file
- * @param file PDF file to upload
+ * Upload a tender file (PDF, Excel, or CSV)
+ * @param file File to upload
  * @param onProgress Optional progress callback
  * @returns Upload response with BOQ extraction
  */
@@ -111,15 +116,22 @@ export async function uploadTender(
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(response);
         } else {
+          // Return structured error response
           resolve({
             success: false,
-            error: { message: response.error?.message || 'Upload failed' },
+            error: response.error || { 
+              message: 'Upload failed',
+              reason: 'UNKNOWN_ERROR',
+            },
           });
         }
       } catch (parseError) {
         resolve({
           success: false,
-          error: { message: `Failed to parse response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}` },
+          error: { 
+            message: `Failed to parse response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
+            reason: 'PARSE_ERROR',
+          },
         });
       }
     });
@@ -156,7 +168,10 @@ export async function listTenders(
   } catch (error) {
     return {
       success: false,
-      error: { message: `Failed to fetch tenders: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      error: { 
+        message: `Failed to fetch tenders: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'NETWORK_ERROR',
+      },
     };
   }
 }
@@ -168,7 +183,7 @@ export async function listTenders(
  */
 export async function getTender(
   id: string
-): Promise<{ success: boolean; data?: Tender; error?: { message: string } }> {
+): Promise<{ success: boolean; data?: Tender; error?: ErrorResponse }> {
   try {
     const response = await fetch(`${API_BASE_URL}/tenders/${id}`);
     const data = await response.json();
@@ -176,7 +191,10 @@ export async function getTender(
   } catch (error) {
     return {
       success: false,
-      error: { message: `Failed to fetch tender: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      error: { 
+        message: `Failed to fetch tender: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'NETWORK_ERROR',
+      },
     };
   }
 }
@@ -188,7 +206,7 @@ export async function getTender(
  */
 export async function deleteTender(
   id: string
-): Promise<{ success: boolean; message?: string; error?: { message: string } }> {
+): Promise<{ success: boolean; message?: string; error?: ErrorResponse }> {
   try {
     const response = await fetch(`${API_BASE_URL}/tenders/${id}`, {
       method: 'DELETE',
@@ -198,7 +216,10 @@ export async function deleteTender(
   } catch (error) {
     return {
       success: false,
-      error: { message: `Failed to delete tender: ${error instanceof Error ? error.message : 'Unknown error'}` },
+      error: { 
+        message: `Failed to delete tender: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'NETWORK_ERROR',
+      },
     };
   }
 }

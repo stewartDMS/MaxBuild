@@ -20,6 +20,7 @@ export interface UploadResult {
   itemCount?: number;
   tenderId?: string;
   error?: string;
+  errorResponse?: import('../api/tenderApi').ErrorResponse;
 }
 
 interface UploadAreaProps {
@@ -82,6 +83,7 @@ export function UploadArea({
             onUploadComplete?.({
               success: false,
               error: response.error?.message || 'Upload failed',
+              errorResponse: response.error,
             });
           }
         })

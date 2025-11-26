@@ -25,49 +25,31 @@ export class CSVService {
     extractedText: string;
     csvData: CSVData;
   }> {
-    try {
-      // Step 1: Load and parse CSV file
-      console.log('Loading CSV file...');
-      const csvData = await this.csvLoader.load(filePath);
+    console.log('📊 Starting CSV processing...');
+    
+    // Step 1: Load and parse CSV file
+    const csvData = await this.csvLoader.load(filePath);
 
-      // Validate that the CSV file is not empty
-      if (csvData.data.length === 0) {
-        throw new Error('CSV file is empty or contains no data');
-      }
-
-      // Step 2: Convert CSV data to text for AI processing
-      console.log('Converting CSV data to text format...');
-      const extractedText = this.csvLoader.convertToText(csvData);
-
-      if (!extractedText || extractedText.trim().length === 0) {
-        throw new Error('No text could be extracted from the CSV file');
-      }
-
-      // Step 3: Run BOQ generation chain on the extracted text
-      console.log('Running BOQ generation chain on CSV data...');
-      const boqExtraction = await this.boqChain.run(extractedText);
-
-      return {
-        boqExtraction,
-        extractedText,
-        csvData,
-      };
-    } catch (error) {
-      console.error('Error processing CSV file:', error);
-      
-      // Provide more specific error messages for common issues
-      if (error instanceof Error) {
-        if (error.message.includes('Unsupported file')) {
-          throw new Error('The CSV file format is not supported. Please use standard CSV format.');
-        } else if (error.message.includes('empty')) {
-          throw new Error('The CSV file appears to be empty or contains no readable data.');
-        } else if (error.message.includes('malformed')) {
-          throw new Error('The CSV file appears to be malformed. Please check the file structure.');
-        }
-      }
-      
-      throw new Error(`Failed to process CSV file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Step 2: Validate structure (optional - provides warnings)
+    const validation = this.validateCSVStructure(csvData);
+    if (validation.suggestions.length > 0) {
+      console.warn('⚠️  CSV structure warnings:', validation.suggestions);
     }
+
+    // Step 3: Convert CSV data to text for AI processing
+    console.log('📝 Converting CSV data to text format...');
+    const extractedText = this.csvLoader.convertToText(csvData);
+
+    // Step 4: Run BOQ generation chain on the extracted text
+    const boqExtraction = await this.boqChain.run(extractedText);
+
+    console.log('✅ CSV processing completed');
+
+    return {
+      boqExtraction,
+      extractedText,
+      csvData,
+    };
   }
 
   /**
@@ -80,34 +62,30 @@ export class CSVService {
     extractedText: string;
     csvData: CSVData;
   }> {
-    try {
-      // Load and parse CSV from buffer
-      const csvData = await this.csvLoader.loadFromBuffer(buffer);
+    console.log('📊 Starting CSV buffer processing...');
+    
+    // Load and parse CSV from buffer
+    const csvData = await this.csvLoader.loadFromBuffer(buffer);
 
-      // Validate that the CSV file is not empty
-      if (csvData.data.length === 0) {
-        throw new Error('CSV file is empty or contains no data');
-      }
-
-      // Convert CSV data to text for AI processing
-      const extractedText = this.csvLoader.convertToText(csvData);
-
-      if (!extractedText || extractedText.trim().length === 0) {
-        throw new Error('No text could be extracted from the CSV file');
-      }
-
-      // Run BOQ generation chain on the extracted text
-      const boqExtraction = await this.boqChain.run(extractedText);
-
-      return {
-        boqExtraction,
-        extractedText,
-        csvData,
-      };
-    } catch (error) {
-      console.error('Error processing CSV buffer:', error);
-      throw new Error(`Failed to process CSV buffer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Validate structure
+    const validation = this.validateCSVStructure(csvData);
+    if (validation.suggestions.length > 0) {
+      console.warn('⚠️  CSV structure warnings:', validation.suggestions);
     }
+
+    // Convert CSV data to text for AI processing
+    const extractedText = this.csvLoader.convertToText(csvData);
+
+    // Run BOQ generation chain on the extracted text
+    const boqExtraction = await this.boqChain.run(extractedText);
+
+    console.log('✅ CSV buffer processing completed');
+
+    return {
+      boqExtraction,
+      extractedText,
+      csvData,
+    };
   }
 
   /**
