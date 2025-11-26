@@ -9,6 +9,7 @@ const API_BASE_URL = '/api';
  * BOQ Item type from backend
  */
 export interface BOQItem {
+  id?: string;
   itemNumber: string;
   description: string;
   quantity: number;
@@ -37,7 +38,20 @@ export interface BOQExtraction {
 export interface ErrorResponse {
   message: string;
   reason: string;
-  details?: Record<string, any>;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Review log entry from backend
+ */
+export interface ReviewLog {
+  id: string;
+  tenderId: string;
+  action: string;
+  details?: string;
+  userId?: string;
+  ipAddress?: string;
+  createdAt: string;
 }
 
 /**
@@ -51,6 +65,21 @@ export interface TenderUploadResponse {
     status: string;
     boqExtraction: BOQExtraction;
     itemCount: number;
+    extractedText?: string;
+  };
+  error?: ErrorResponse;
+}
+
+/**
+ * Review action response from backend
+ */
+export interface ReviewActionResponse {
+  success: boolean;
+  data?: {
+    tenderId: string;
+    action: string;
+    status: string;
+    message: string;
   };
   error?: ErrorResponse;
 }
@@ -68,6 +97,7 @@ export interface Tender {
   createdAt: string;
   updatedAt: string;
   boqs: BOQItem[];
+  reviewLogs?: ReviewLog[];
 }
 
 /**
@@ -88,12 +118,14 @@ export interface ListTendersResponse {
  * Upload a tender file (PDF, Excel, or CSV)
  * @param file File to upload
  * @param context Optional extraction context/instructions for the AI
+ * @param requiresReview If true, saves to pending_review status for user confirmation
  * @param onProgress Optional progress callback
  * @returns Upload response with BOQ extraction
  */
 export async function uploadTender(
   file: File,
   context?: string,
+  requiresReview: boolean = false,
   onProgress?: (progress: number) => void
 ): Promise<TenderUploadResponse> {
   const formData = new FormData();
@@ -102,6 +134,11 @@ export async function uploadTender(
   // Add context if provided
   if (context) {
     formData.append('context', context);
+  }
+
+  // Add requiresReview flag
+  if (requiresReview) {
+    formData.append('requiresReview', 'true');
   }
 
   return new Promise((resolve, reject) => {
@@ -170,6 +207,122 @@ export async function uploadTender(
     xhr.open('POST', `${API_BASE_URL}/tenders/upload`);
     xhr.send(formData);
   });
+}
+
+/**
+ * Approve and finalize a tender after user review
+ * @param tenderId Tender ID to approve
+ * @param items Optional array of edited BOQ items to save
+ * @returns Review action response
+ */
+export async function approveTender(
+  tenderId: string,
+  items?: BOQItem[]
+): Promise<ReviewActionResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tenders/${tenderId}/approve`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ items }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      error: { 
+        message: `Failed to approve tender: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'NETWORK_ERROR',
+      },
+    };
+  }
+}
+
+/**
+ * Reject a tender extraction
+ * @param tenderId Tender ID to reject
+ * @param reason Optional rejection reason
+ * @returns Review action response
+ */
+export async function rejectTender(
+  tenderId: string,
+  reason?: string
+): Promise<ReviewActionResponse> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tenders/${tenderId}/reject`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ reason }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      error: { 
+        message: `Failed to reject tender: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'NETWORK_ERROR',
+      },
+    };
+  }
+}
+
+/**
+ * Update BOQ items for a tender
+ * @param tenderId Tender ID
+ * @param items Array of BOQ items to save
+ * @returns Updated tender with BOQ items
+ */
+export async function updateBOQItems(
+  tenderId: string,
+  items: BOQItem[]
+): Promise<{ success: boolean; data?: Tender; error?: ErrorResponse }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tenders/${tenderId}/items`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ items }),
+    });
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      error: { 
+        message: `Failed to update BOQ items: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'NETWORK_ERROR',
+      },
+    };
+  }
+}
+
+/**
+ * Get review logs for a tender
+ * @param tenderId Tender ID
+ * @returns Array of review log entries
+ */
+export async function getReviewLogs(
+  tenderId: string
+): Promise<{ success: boolean; data?: ReviewLog[]; error?: ErrorResponse }> {
+  try {
+    const response = await fetch(`${API_BASE_URL}/tenders/${tenderId}/review-logs`);
+    const data = await response.json();
+    return data;
+  } catch (error) {
+    return {
+      success: false,
+      error: { 
+        message: `Failed to fetch review logs: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        reason: 'NETWORK_ERROR',
+      },
+    };
+  }
 }
 
 /**

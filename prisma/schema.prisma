@@ -17,10 +17,11 @@ model Tender {
   mimeType          String
   extractedText     String? @db.Text
   extractionContext String? @db.Text
-  status            String   @default("pending")
+  status            String   @default("pending") // pending, processing, pending_review, completed, rejected
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
   boqs              BOQ[]
+  reviewLogs        ReviewLog[]
 }
 
 model BOQ {
@@ -38,4 +39,19 @@ model BOQ {
   updatedAt   DateTime @updatedAt
 
   @@index([tenderId])
+}
+
+// Review actions log for traceability
+model ReviewLog {
+  id         String   @id @default(uuid())
+  tenderId   String
+  tender     Tender   @relation(fields: [tenderId], references: [id], onDelete: Cascade)
+  action     String   // 'approved', 'rejected', 'edited', 'item_added', 'item_removed', 'item_edited'
+  details    String?  @db.Text // JSON string with additional details (e.g., edited fields, reasons)
+  userId     String?  // Optional user identifier for future authentication
+  ipAddress  String?  // Optional for audit purposes
+  createdAt  DateTime @default(now())
+
+  @@index([tenderId])
+  @@index([action])
 }

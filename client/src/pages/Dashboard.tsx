@@ -6,8 +6,9 @@ import {
   Pending as PendingIcon,
   AttachMoney as AttachMoneyIcon,
 } from '@mui/icons-material';
-import { StatCard, TenderCard, UploadArea, RecentActivity, type UploadResult } from '../components';
+import { StatCard, TenderCard, UploadArea, RecentActivity, BOQReviewDialog, type UploadResult } from '../components';
 import { formatErrorMessage, getErrorSeverity, formatErrorDetails } from '../utils/errorUtils';
+import { approveTender, rejectTender, type BOQExtraction, type BOQItem } from '../api/tenderApi';
 
 // Sample data - in a real app, this would come from an API
 const sampleTenders = [
@@ -75,12 +76,29 @@ const sampleActivities = [
   },
 ];
 
+// Review state interface
+interface ReviewState {
+  open: boolean;
+  tenderId: string;
+  fileName: string;
+  boqExtraction: BOQExtraction | null;
+}
+
 export function Dashboard() {
   const theme = useTheme();
   
   // Upload state management
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Review dialog state
+  const [reviewState, setReviewState] = useState<ReviewState>({
+    open: false,
+    tenderId: '',
+    fileName: '',
+    boqExtraction: null,
+  });
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
   
   // Snackbar state for notifications
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -101,10 +119,29 @@ export function Dashboard() {
     setUploadProgress(100);
     
     if (result.success) {
-      setSnackbarSeverity('success');
-      setSnackbarTitle('Upload Successful');
-      setSnackbarMessage(`Successfully extracted ${result.itemCount || 0} BOQ items from "${result.fileName}"`);
-      setSnackbarDetails([]);
+      // Check if this is a pending review result
+      if (result.pendingReview && result.boqExtraction && result.tenderId && result.fileName) {
+        // Open the review dialog instead of showing success message
+        setReviewState({
+          open: true,
+          tenderId: result.tenderId,
+          fileName: result.fileName,
+          boqExtraction: result.boqExtraction,
+        });
+        // Show info notification
+        setSnackbarSeverity('info');
+        setSnackbarTitle('Review Required');
+        setSnackbarMessage(`Extracted ${result.itemCount || 0} BOQ items from "${result.fileName}". Please review before saving.`);
+        setSnackbarDetails([]);
+        setSnackbarOpen(true);
+      } else {
+        // Direct save (no review) - show success message
+        setSnackbarSeverity('success');
+        setSnackbarTitle('Upload Successful');
+        setSnackbarMessage(`Successfully extracted ${result.itemCount || 0} BOQ items from "${result.fileName}"`);
+        setSnackbarDetails([]);
+        setSnackbarOpen(true);
+      }
     } else {
       // Format error with structured details
       if (result.errorResponse) {
@@ -132,8 +169,8 @@ export function Dashboard() {
         setSnackbarMessage(result.error || 'An error occurred during upload');
         setSnackbarDetails([]);
       }
+      setSnackbarOpen(true);
     }
-    setSnackbarOpen(true);
   }, []);
 
   // Handle upload error (validation errors)
@@ -144,6 +181,70 @@ export function Dashboard() {
     setSnackbarMessage(error);
     setSnackbarOpen(true);
   }, []);
+
+  // Handle review dialog close
+  const handleReviewClose = useCallback(() => {
+    setReviewState({
+      open: false,
+      tenderId: '',
+      fileName: '',
+      boqExtraction: null,
+    });
+  }, []);
+
+  // Handle approve action from review dialog
+  const handleApprove = useCallback(async (tenderId: string, items: BOQItem[]) => {
+    setIsReviewLoading(true);
+    try {
+      const response = await approveTender(tenderId, items);
+      if (response.success) {
+        setSnackbarSeverity('success');
+        setSnackbarTitle('Extraction Approved');
+        setSnackbarMessage(`BOQ extraction for "${reviewState.fileName}" has been approved and saved.`);
+        setSnackbarDetails([]);
+        setSnackbarOpen(true);
+        handleReviewClose();
+      } else {
+        throw new Error(response.error?.message || 'Failed to approve extraction');
+      }
+    } catch (error) {
+      setSnackbarSeverity('error');
+      setSnackbarTitle('Approval Failed');
+      setSnackbarMessage(error instanceof Error ? error.message : 'Failed to approve extraction');
+      setSnackbarDetails([]);
+      setSnackbarOpen(true);
+      throw error; // Re-throw to let the dialog handle the error state
+    } finally {
+      setIsReviewLoading(false);
+    }
+  }, [reviewState.fileName, handleReviewClose]);
+
+  // Handle reject action from review dialog
+  const handleReject = useCallback(async (tenderId: string, reason?: string) => {
+    setIsReviewLoading(true);
+    try {
+      const response = await rejectTender(tenderId, reason);
+      if (response.success) {
+        setSnackbarSeverity('warning');
+        setSnackbarTitle('Extraction Rejected');
+        setSnackbarMessage(`BOQ extraction for "${reviewState.fileName}" has been rejected.`);
+        setSnackbarDetails(reason ? [`Reason: ${reason}`] : []);
+        setSnackbarOpen(true);
+        handleReviewClose();
+      } else {
+        throw new Error(response.error?.message || 'Failed to reject extraction');
+      }
+    } catch (error) {
+      setSnackbarSeverity('error');
+      setSnackbarTitle('Rejection Failed');
+      setSnackbarMessage(error instanceof Error ? error.message : 'Failed to reject extraction');
+      setSnackbarDetails([]);
+      setSnackbarOpen(true);
+      throw error; // Re-throw to let the dialog handle the error state
+    } finally {
+      setIsReviewLoading(false);
+    }
+  }, [reviewState.fileName, handleReviewClose]);
 
   // Close snackbar
   const handleSnackbarClose = useCallback(() => {
@@ -215,6 +316,7 @@ export function Dashboard() {
           onUploadError={handleUploadError}
           isUploading={isUploading}
           uploadProgress={uploadProgress}
+          defaultRequiresReview={true}
         />
       </Box>
 
@@ -268,6 +370,20 @@ export function Dashboard() {
           <RecentActivity activities={sampleActivities} onViewAll={() => console.log('View all activities')} />
         </Grid>
       </Grid>
+
+      {/* BOQ Review Dialog */}
+      {reviewState.boqExtraction && (
+        <BOQReviewDialog
+          open={reviewState.open}
+          onClose={handleReviewClose}
+          tenderId={reviewState.tenderId}
+          fileName={reviewState.fileName}
+          boqExtraction={reviewState.boqExtraction}
+          onApprove={handleApprove}
+          onReject={handleReject}
+          isLoading={isReviewLoading}
+        />
+      )}
 
       {/* Upload notification snackbar */}
       <Snackbar
