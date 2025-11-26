@@ -3,6 +3,7 @@ import { PDFLoader } from '../ai/loaders/pdf.loader';
 import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import { ExcelService } from './excel.service';
 import { CSVService } from './csv.service';
+import { UnsupportedFileTypeError, EmptyFileError } from '../lib/errors';
 import type { BOQExtraction } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -43,45 +44,58 @@ export class TenderService {
     fileSize: number,
     mimeType: string
   ): Promise<TenderUploadResult> {
+    console.log('🚀 Starting tender processing:', { fileName, fileSize, mimeType });
+    
+    let extractedText: string;
+    let boqExtraction: BOQExtraction;
+
+    // Detect file type and dispatch to appropriate parser
+    const isExcel = this.isExcelFile(mimeType);
+    const isCSV = this.isCSVFile(mimeType);
+    const isPDF = mimeType === 'application/pdf';
+
+    if (!isPDF && !isExcel && !isCSV) {
+      throw new UnsupportedFileTypeError(mimeType, [
+        'PDF (.pdf)',
+        'Excel (.xlsx, .xls)',
+        'CSV (.csv)',
+      ]);
+    }
+
     try {
-      let extractedText: string;
-      let boqExtraction: BOQExtraction;
-
-      // Detect file type and dispatch to appropriate parser
-      const isExcel = this.isExcelFile(mimeType);
-      const isCSV = this.isCSVFile(mimeType);
-      const isPDF = mimeType === 'application/pdf';
-
       if (isCSV) {
         // Process CSV file
-        console.log('Processing CSV file...');
+        console.log('📊 Processing CSV file...');
         const result = await this.csvService.processCSV(filePath);
         extractedText = result.extractedText;
         boqExtraction = result.boqExtraction;
       } else if (isExcel) {
         // Process Excel file
-        console.log('Processing Excel file...');
+        console.log('📊 Processing Excel file...');
         const result = await this.excelService.processExcel(filePath);
         extractedText = result.extractedText;
         boqExtraction = result.boqExtraction;
       } else if (isPDF) {
         // Process PDF file
-        console.log('Extracting text from PDF...');
+        console.log('📄 Processing PDF file...');
         extractedText = await this.pdfLoader.load(filePath);
 
         if (!extractedText || extractedText.trim().length === 0) {
-          throw new Error('No text could be extracted from the PDF');
+          throw new EmptyFileError('PDF', 'No text could be extracted from the PDF');
         }
 
         // Run BOQ generation chain
-        console.log('Running BOQ generation chain...');
         boqExtraction = await this.boqChain.run(extractedText);
       } else {
-        throw new Error(`Unsupported file type: ${mimeType}`);
+        throw new UnsupportedFileTypeError(mimeType, [
+          'PDF (.pdf)',
+          'Excel (.xlsx, .xls)',
+          'CSV (.csv)',
+        ]);
       }
 
       // Create tender record in database
-      console.log('Creating tender record...');
+      console.log('💾 Creating tender record...');
       const tender = await prisma.tender.create({
         data: {
           fileName,
@@ -93,7 +107,7 @@ export class TenderService {
       });
 
       // Save BOQ items to database
-      console.log('Saving BOQ items...');
+      console.log('💾 Saving BOQ items...');
       const boqItems = boqExtraction.items.map((item) => ({
         tenderId: tender.id,
         itemNumber: item.itemNumber,
@@ -115,6 +129,11 @@ export class TenderService {
         data: { status: 'completed' },
       });
 
+      console.log('✅ Tender processing completed successfully:', {
+        tenderId: tender.id,
+        itemCount: boqItems.length,
+      });
+
       return {
         tenderId: tender.id,
         fileName,
@@ -123,7 +142,10 @@ export class TenderService {
         itemCount: boqItems.length,
       };
     } catch (error) {
-      console.error('Error processing tender:', error);
+      console.error('❌ Error processing tender:', {
+        fileName,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       throw error;
     }
   }

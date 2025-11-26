@@ -1,6 +1,6 @@
-import { Router } from 'express';
+import { Router, Request, Response, NextFunction } from 'express';
 import { TenderController } from '../controllers/tender.controller';
-import upload from '../middleware/upload.middleware';
+import upload, { handleMulterError } from '../middleware/upload.middleware';
 import { uploadRateLimiter } from '../middleware/rate-limit.middleware';
 
 const router = Router();
@@ -14,7 +14,8 @@ router.post(
   '/upload',
   uploadRateLimiter,
   upload.single('tender'),
-  (req, res, next) => tenderController.uploadTender(req, res, next)
+  handleMulterError,
+  (req: Request, res: Response, next: NextFunction) => tenderController.uploadTender(req, res, next)
 );
 
 /**
@@ -23,7 +24,7 @@ router.post(
  */
 router.get(
   '/',
-  (req, res, next) => tenderController.listTenders(req, res, next)
+  (req: Request, res: Response, next: NextFunction) => tenderController.listTenders(req, res, next)
 );
 
 /**
@@ -32,7 +33,7 @@ router.get(
  */
 router.get(
   '/:id',
-  (req, res, next) => tenderController.getTender(req, res, next)
+  (req: Request, res: Response, next: NextFunction) => tenderController.getTender(req, res, next)
 );
 
 /**
@@ -41,7 +42,7 @@ router.get(
  */
 router.delete(
   '/:id',
-  (req, res, next) => tenderController.deleteTender(req, res, next)
+  (req: Request, res: Response, next: NextFunction) => tenderController.deleteTender(req, res, next)
 );
 
 export default router;

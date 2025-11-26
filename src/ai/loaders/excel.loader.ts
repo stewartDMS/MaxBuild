@@ -1,4 +1,10 @@
 import ExcelJS from 'exceljs';
+import {
+  CorruptFileError,
+  EmptyFileError,
+  ParsingError,
+  PasswordProtectedFileError,
+} from '../../lib/errors';
 
 /**
  * Loads and extracts data from Excel files (.xlsx, .xls)
@@ -12,6 +18,8 @@ export class ExcelLoader {
    */
   async load(filePath: string): Promise<ExcelData> {
     try {
+      console.log('📊 Loading Excel file...');
+      
       // Create a new workbook and read the file
       const workbook = new ExcelJS.Workbook();
       await workbook.xlsx.readFile(filePath);
@@ -69,6 +77,16 @@ export class ExcelLoader {
           columnCount: columnCount,
         });
       });
+
+      // Validate that we have data
+      if (sheets.length === 0 || sheets.every(sheet => sheet.data.length === 0)) {
+        throw new EmptyFileError('Excel', 'The Excel file contains no sheets or all sheets are empty');
+      }
+
+      console.log('✅ Excel file loaded successfully:', {
+        sheets: sheets.length,
+        totalRows: sheets.reduce((sum, s) => sum + s.data.length, 0),
+      });
       
       return {
         fileName: filePath.split('/').pop() || 'unknown',
@@ -76,8 +94,40 @@ export class ExcelLoader {
         sheets,
       };
     } catch (error) {
-      console.error('Error loading Excel:', error);
-      throw new Error(`Failed to load Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Error loading Excel:', error);
+      
+      // Handle specific error cases
+      if (error instanceof EmptyFileError) {
+        throw error;
+      }
+      
+      // Check for common Excel issues
+      if (error instanceof Error) {
+        const errorMessage = error.message.toLowerCase();
+        
+        // Password-protected file
+        if (errorMessage.includes('password') || 
+            errorMessage.includes('encrypted') ||
+            errorMessage.includes('protected')) {
+          throw new PasswordProtectedFileError('Excel');
+        }
+        
+        // Corrupted file
+        if (errorMessage.includes('corrupt') ||
+            errorMessage.includes('invalid') ||
+            errorMessage.includes('malformed') ||
+            errorMessage.includes('zip')) {
+          throw new CorruptFileError('Excel', 'The Excel file appears to be corrupted or in an invalid format');
+        }
+        
+        // Unsupported format
+        if (errorMessage.includes('unsupported')) {
+          throw new CorruptFileError('Excel', 'The Excel file format is not supported. Please use .xlsx or .xls');
+        }
+      }
+      
+      // Generic parsing error
+      throw new ParsingError('Excel', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 
@@ -88,6 +138,8 @@ export class ExcelLoader {
    */
   async loadFromBuffer(buffer: Buffer): Promise<ExcelData> {
     try {
+      console.log('📊 Loading Excel from buffer...');
+      
       // Create a new workbook and read from buffer
       const workbook = new ExcelJS.Workbook();
       // Convert Buffer to Uint8Array for exceljs compatibility
@@ -147,6 +199,16 @@ export class ExcelLoader {
           columnCount: columnCount,
         });
       });
+
+      // Validate that we have data
+      if (sheets.length === 0 || sheets.every(sheet => sheet.data.length === 0)) {
+        throw new EmptyFileError('Excel', 'The Excel file contains no sheets or all sheets are empty');
+      }
+
+      console.log('✅ Excel loaded successfully:', {
+        sheets: sheets.length,
+        totalRows: sheets.reduce((sum, s) => sum + s.data.length, 0),
+      });
       
       return {
         fileName: 'buffer',
@@ -154,8 +216,17 @@ export class ExcelLoader {
         sheets,
       };
     } catch (error) {
-      console.error('Error loading Excel from buffer:', error);
-      throw new Error(`Failed to load Excel from buffer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('❌ Error loading Excel from buffer:', error);
+      
+      // Handle specific error cases
+      if (error instanceof EmptyFileError || 
+          error instanceof PasswordProtectedFileError ||
+          error instanceof CorruptFileError) {
+        throw error;
+      }
+      
+      // Generic parsing error
+      throw new ParsingError('Excel', error instanceof Error ? error.message : 'Unknown error');
     }
   }
 

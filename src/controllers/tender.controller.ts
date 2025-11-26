@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { TenderService } from '../services/tender.service';
+import { NoFileUploadedError, ResourceNotFoundError } from '../lib/errors';
 import fs from 'fs/promises';
 
 /**
@@ -19,13 +20,16 @@ export class TenderController {
   async uploadTender(req: Request, res: Response, next: NextFunction) {
     try {
       if (!req.file) {
-        return res.status(400).json({
-          success: false,
-          error: { message: 'No file uploaded' },
-        });
+        throw new NoFileUploadedError();
       }
 
       const { path: filePath, originalname, size, mimetype } = req.file;
+
+      console.log('📄 Processing tender upload:', {
+        fileName: originalname,
+        fileSize: `${(size / 1024).toFixed(2)} KB`,
+        mimeType: mimetype,
+      });
 
       // Process the tender
       const result = await this.tenderService.processTender(
@@ -37,7 +41,13 @@ export class TenderController {
 
       // Clean up the uploaded file after processing
       await fs.unlink(filePath).catch((err) => {
-        console.warn('Failed to delete uploaded file:', err);
+        console.warn('⚠️  Failed to delete uploaded file:', err);
+      });
+
+      console.log('✅ Tender processed successfully:', {
+        tenderId: result.tenderId,
+        itemCount: result.itemCount,
+        status: result.status,
       });
 
       res.status(200).json({
@@ -45,6 +55,12 @@ export class TenderController {
         data: result,
       });
     } catch (error) {
+      // Clean up file on error if it exists
+      if (req.file?.path) {
+        await fs.unlink(req.file.path).catch((err) => {
+          console.warn('⚠️  Failed to delete uploaded file after error:', err);
+        });
+      }
       next(error);
     }
   }
@@ -60,10 +76,7 @@ export class TenderController {
       const tender = await this.tenderService.getTender(id);
 
       if (!tender) {
-        return res.status(404).json({
-          success: false,
-          error: { message: 'Tender not found' },
-        });
+        throw new ResourceNotFoundError('Tender', id);
       }
 
       res.status(200).json({

@@ -1,5 +1,6 @@
 import { ExcelLoader } from '../ai/loaders/excel.loader';
 import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
+import { InvalidStructureError } from '../lib/errors';
 import type { BOQExtraction } from '../ai/schemas/boq.schema';
 import type { ExcelData } from '../ai/loaders/excel.loader';
 
@@ -25,49 +26,31 @@ export class ExcelService {
     extractedText: string;
     excelData: ExcelData;
   }> {
-    try {
-      // Step 1: Load and parse Excel file
-      console.log('Loading Excel file...');
-      const excelData = await this.excelLoader.load(filePath);
+    console.log('📊 Starting Excel processing...');
+    
+    // Step 1: Load and parse Excel file
+    const excelData = await this.excelLoader.load(filePath);
 
-      // Validate that the Excel file is not empty
-      if (excelData.sheets.length === 0 || excelData.sheets.every(sheet => sheet.data.length === 0)) {
-        throw new Error('Excel file is empty or contains no data');
-      }
-
-      // Step 2: Convert Excel data to text for AI processing
-      console.log('Converting Excel data to text format...');
-      const extractedText = this.excelLoader.convertToText(excelData);
-
-      if (!extractedText || extractedText.trim().length === 0) {
-        throw new Error('No text could be extracted from the Excel file');
-      }
-
-      // Step 3: Run BOQ generation chain on the extracted text
-      console.log('Running BOQ generation chain on Excel data...');
-      const boqExtraction = await this.boqChain.run(extractedText);
-
-      return {
-        boqExtraction,
-        extractedText,
-        excelData,
-      };
-    } catch (error) {
-      console.error('Error processing Excel file:', error);
-      
-      // Provide more specific error messages for common issues
-      if (error instanceof Error) {
-        if (error.message.includes('Unsupported file')) {
-          throw new Error('The Excel file format is not supported. Please use .xlsx or .xls format.');
-        } else if (error.message.includes('encrypted') || error.message.includes('password')) {
-          throw new Error('Cannot process password-protected Excel files. Please remove password protection and try again.');
-        } else if (error.message.includes('empty')) {
-          throw new Error('The Excel file appears to be empty or contains no readable data.');
-        }
-      }
-      
-      throw new Error(`Failed to process Excel file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Step 2: Validate structure (optional - provides warnings)
+    const validation = this.validateExcelStructure(excelData);
+    if (validation.suggestions.length > 0) {
+      console.warn('⚠️  Excel structure warnings:', validation.suggestions);
     }
+
+    // Step 3: Convert Excel data to text for AI processing
+    console.log('📝 Converting Excel data to text format...');
+    const extractedText = this.excelLoader.convertToText(excelData);
+
+    // Step 4: Run BOQ generation chain on the extracted text
+    const boqExtraction = await this.boqChain.run(extractedText);
+
+    console.log('✅ Excel processing completed');
+
+    return {
+      boqExtraction,
+      extractedText,
+      excelData,
+    };
   }
 
   /**
@@ -80,34 +63,30 @@ export class ExcelService {
     extractedText: string;
     excelData: ExcelData;
   }> {
-    try {
-      // Load and parse Excel from buffer
-      const excelData = await this.excelLoader.loadFromBuffer(buffer);
+    console.log('📊 Starting Excel buffer processing...');
+    
+    // Load and parse Excel from buffer
+    const excelData = await this.excelLoader.loadFromBuffer(buffer);
 
-      // Validate that the Excel file is not empty
-      if (excelData.sheets.length === 0 || excelData.sheets.every(sheet => sheet.data.length === 0)) {
-        throw new Error('Excel file is empty or contains no data');
-      }
-
-      // Convert Excel data to text for AI processing
-      const extractedText = this.excelLoader.convertToText(excelData);
-
-      if (!extractedText || extractedText.trim().length === 0) {
-        throw new Error('No text could be extracted from the Excel file');
-      }
-
-      // Run BOQ generation chain on the extracted text
-      const boqExtraction = await this.boqChain.run(extractedText);
-
-      return {
-        boqExtraction,
-        extractedText,
-        excelData,
-      };
-    } catch (error) {
-      console.error('Error processing Excel buffer:', error);
-      throw new Error(`Failed to process Excel buffer: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    // Validate structure
+    const validation = this.validateExcelStructure(excelData);
+    if (validation.suggestions.length > 0) {
+      console.warn('⚠️  Excel structure warnings:', validation.suggestions);
     }
+
+    // Convert Excel data to text for AI processing
+    const extractedText = this.excelLoader.convertToText(excelData);
+
+    // Run BOQ generation chain on the extracted text
+    const boqExtraction = await this.boqChain.run(extractedText);
+
+    console.log('✅ Excel buffer processing completed');
+
+    return {
+      boqExtraction,
+      extractedText,
+      excelData,
+    };
   }
 
   /**
