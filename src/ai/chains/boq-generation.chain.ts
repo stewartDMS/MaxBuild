@@ -9,7 +9,6 @@ import { AIExtractionError } from '../../lib/errors';
  */
 export class BOQGenerationChain {
   private model: ChatOpenAI;
-  private prompt: PromptTemplate;
 
   constructor(apiKey?: string) {
     // Initialize the OpenAI model with structured output
@@ -18,28 +17,6 @@ export class BOQGenerationChain {
       temperature: 0,
       openAIApiKey: apiKey || process.env.OPENAI_API_KEY,
     });
-
-    // Create the prompt template
-    this.prompt = PromptTemplate.fromTemplate(`
-You are an expert construction estimator and quantity surveyor. Your task is to analyze tender documents and extract Bill of Quantities (BOQ) information.
-
-Given the following tender document text, extract all BOQ items with their details:
-
-Tender Document Text:
-{tenderText}
-
-Please extract:
-1. All work items with their item numbers
-2. Detailed descriptions of each item
-3. Quantities and units of measurement
-4. Any rates or amounts mentioned
-5. Categories or trades (civil, electrical, plumbing, etc.)
-6. Project information if available
-
-Today's date: {date}
-
-Provide a comprehensive BOQ extraction following the required schema.
-    `);
   }
 
   /**
@@ -179,9 +156,49 @@ Provide a comprehensive BOQ extraction following the required schema.
   /**
    * Run the chain with streaming (for future use)
    * @param tenderText Extracted text from the tender document
+   * @param userContext Optional user-provided context or instructions for extraction
    */
-  async *stream(tenderText: string) {
-    const formattedPrompt = await this.prompt.format({
+  async *stream(tenderText: string, userContext?: string) {
+    // Build the prompt with optional user context (same as run method)
+    let promptText = `
+You are an expert construction estimator and quantity surveyor. Your task is to analyze tender documents and extract Bill of Quantities (BOQ) information.
+`;
+
+    // Add user context if provided
+    if (userContext && userContext.trim()) {
+      promptText += `
+
+IMPORTANT - User Instructions:
+${userContext}
+
+Please carefully consider these user instructions when extracting the BOQ data.
+`;
+    }
+
+    promptText += `
+
+Given the following tender document text, extract all BOQ items with their details:
+
+Tender Document Text:
+{tenderText}
+
+Please extract:
+1. All work items with their item numbers
+2. Detailed descriptions of each item
+3. Quantities and units of measurement
+4. Any rates or amounts mentioned
+5. Categories or trades (civil, electrical, plumbing, etc.)
+6. Project information if available
+
+Today's date: {date}
+
+Provide a comprehensive BOQ extraction following the required schema.
+    `;
+
+    // Create a dynamic prompt template
+    const dynamicPrompt = PromptTemplate.fromTemplate(promptText);
+
+    const formattedPrompt = await dynamicPrompt.format({
       tenderText,
       date: new Date().toISOString(),
     });
