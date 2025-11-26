@@ -5,13 +5,20 @@ import {
   CardContent,
   Typography,
   Button,
+  TextField,
+  Chip,
   useTheme,
   CircularProgress,
   LinearProgress,
   type SxProps,
   type Theme,
 } from '@mui/material';
-import { Upload as UploadIcon } from '@mui/icons-material';
+import { 
+  Upload as UploadIcon, 
+  Description as DescriptionIcon,
+  Close as CloseIcon,
+  PlayArrow as PlayArrowIcon,
+} from '@mui/icons-material';
 import { uploadTender } from '../api/tenderApi';
 
 export interface UploadResult {
@@ -43,6 +50,8 @@ export function UploadArea({
   const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [extractionContext, setExtractionContext] = useState('');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
   const handleFileSelect = useCallback(
     (file: File) => {
@@ -66,36 +75,46 @@ export function UploadArea({
         return;
       }
 
-      // Trigger upload
-      onUploadStart?.();
+      // Store the file instead of immediately uploading
+      setSelectedFile(file);
+    },
+    [onUploadError]
+  );
 
-      // Perform the upload
-      uploadTender(file)
-        .then((response) => {
-          if (response.success && response.data) {
-            onUploadComplete?.({
-              success: true,
-              fileName: response.data.fileName,
-              itemCount: response.data.itemCount,
-              tenderId: response.data.tenderId,
-            });
-          } else {
-            onUploadComplete?.({
-              success: false,
-              error: response.error?.message || 'Upload failed',
-              errorResponse: response.error,
-            });
-          }
-        })
-        .catch((error) => {
+  const handleStartProcessing = useCallback(() => {
+    if (!selectedFile) return;
+
+    // Trigger upload
+    onUploadStart?.();
+
+    // Perform the upload with optional context
+    uploadTender(selectedFile, extractionContext.trim() || undefined)
+      .then((response) => {
+        if (response.success && response.data) {
+          onUploadComplete?.({
+            success: true,
+            fileName: response.data.fileName,
+            itemCount: response.data.itemCount,
+            tenderId: response.data.tenderId,
+          });
+          // Clear the context and file after successful upload
+          setExtractionContext('');
+          setSelectedFile(null);
+        } else {
           onUploadComplete?.({
             success: false,
-            error: error.message || 'Upload failed',
+            error: response.error?.message || 'Upload failed',
+            errorResponse: response.error,
           });
+        }
+      })
+      .catch((error) => {
+        onUploadComplete?.({
+          success: false,
+          error: error.message || 'Upload failed',
         });
-    },
-    [onUploadStart, onUploadComplete, onUploadError]
-  );
+      });
+  }, [selectedFile, extractionContext, onUploadStart, onUploadComplete]);
 
   const handleDragEnter = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -147,6 +166,10 @@ export function UploadArea({
       fileInputRef.current?.click();
     }
   }, [isUploading]);
+
+  const handleRemoveFile = useCallback(() => {
+    setSelectedFile(null);
+  }, []);
 
   return (
     <Card
@@ -215,7 +238,7 @@ export function UploadArea({
 
         {/* Title */}
         <Typography variant="h6" gutterBottom>
-          {isUploading ? 'Processing Document...' : 'Upload Tender Document'}
+          {isUploading ? 'Processing Document...' : selectedFile ? 'Document Ready' : 'Upload Tender Document'}
         </Typography>
 
         {/* Description or progress */}
@@ -234,25 +257,89 @@ export function UploadArea({
               aria-label={`Upload progress: ${uploadProgress}%`}
             />
           </Box>
-        ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
-            Drag and drop your tender document here, or click the button below to browse files.
-            Supported formats: PDF, Excel (.xlsx, .xls), CSV - max 10MB
-          </Typography>
-        )}
+        ) : selectedFile ? (
+          <>
+            {/* Show selected file */}
+            <Box sx={{ width: '100%', maxWidth: 500, mb: 3 }}>
+              <Chip
+                icon={<DescriptionIcon />}
+                label={selectedFile.name}
+                onDelete={handleRemoveFile}
+                deleteIcon={<CloseIcon />}
+                color="primary"
+                variant="outlined"
+                sx={{ mb: 2, maxWidth: '100%' }}
+              />
+              <Typography variant="caption" color="text.secondary" display="block">
+                Size: {(selectedFile.size / 1024).toFixed(2)} KB
+              </Typography>
+            </Box>
 
-        {/* Browse button */}
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={isUploading ? <CircularProgress size={20} color="inherit" /> : <UploadIcon />}
-          onClick={handleBrowseClick}
-          size="large"
-          disabled={isUploading}
-          aria-label={isUploading ? 'Upload in progress' : 'Browse and upload PDF, Excel, or CSV files'}
-        >
-          {isUploading ? 'Uploading...' : 'Browse Files'}
-        </Button>
+            {/* Extraction Context Input */}
+            <Box sx={{ width: '100%', maxWidth: 500, mb: 3 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Extraction Context (Optional)"
+                placeholder="E.g., Focus on electrical items only, Include labor costs, Extract by building section..."
+                value={extractionContext}
+                onChange={(e) => setExtractionContext(e.target.value)}
+                disabled={isUploading}
+                helperText="Provide specific instructions to guide the AI extraction process"
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.background.paper,
+                  },
+                }}
+              />
+            </Box>
+
+            {/* Action buttons */}
+            <Box sx={{ display: 'flex', gap: 2 }}>
+              <Button
+                variant="outlined"
+                color="secondary"
+                onClick={handleRemoveFile}
+                disabled={isUploading}
+                aria-label="Remove selected file"
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="contained"
+                color="primary"
+                startIcon={<PlayArrowIcon />}
+                onClick={handleStartProcessing}
+                size="large"
+                disabled={isUploading}
+                aria-label="Start processing document"
+              >
+                Start Processing
+              </Button>
+            </Box>
+          </>
+        ) : (
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
+              Drag and drop your tender document here, or click the button below to browse files.
+              Supported formats: PDF, Excel (.xlsx, .xls), CSV - max 10MB
+            </Typography>
+
+            {/* Browse button when no file selected */}
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<UploadIcon />}
+              onClick={handleBrowseClick}
+              size="large"
+              aria-label="Browse and select PDF, Excel, or CSV files"
+            >
+              Browse Files
+            </Button>
+          </>
+        )}
       </CardContent>
     </Card>
   );

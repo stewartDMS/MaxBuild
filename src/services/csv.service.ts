@@ -18,9 +18,10 @@ export class CSVService {
   /**
    * Process a CSV file and extract BOQ data
    * @param filePath Path to the CSV file
+   * @param userContext Optional user-provided context or instructions for extraction
    * @returns BOQ extraction result and raw CSV data
    */
-  async processCSV(filePath: string): Promise<{
+  async processCSV(filePath: string, userContext?: string): Promise<{
     boqExtraction: BOQExtraction;
     extractedText: string;
     csvData: CSVData;
@@ -41,7 +42,7 @@ export class CSVService {
     const extractedText = this.csvLoader.convertToText(csvData);
 
     // Step 4: Run BOQ generation chain on the extracted text
-    const boqExtraction = await this.boqChain.run(extractedText);
+    const boqExtraction = await this.boqChain.run(extractedText, userContext);
 
     console.log('✅ CSV processing completed');
 
@@ -55,9 +56,10 @@ export class CSVService {
   /**
    * Process a CSV file from a buffer
    * @param buffer CSV file buffer
+   * @param userContext Optional user-provided context or instructions for extraction
    * @returns BOQ extraction result and raw CSV data
    */
-  async processCSVFromBuffer(buffer: Buffer): Promise<{
+  async processCSVFromBuffer(buffer: Buffer, userContext?: string): Promise<{
     boqExtraction: BOQExtraction;
     extractedText: string;
     csvData: CSVData;
@@ -77,7 +79,7 @@ export class CSVService {
     const extractedText = this.csvLoader.convertToText(csvData);
 
     // Run BOQ generation chain on the extracted text
-    const boqExtraction = await this.boqChain.run(extractedText);
+    const boqExtraction = await this.boqChain.run(extractedText, userContext);
 
     console.log('✅ CSV buffer processing completed');
 

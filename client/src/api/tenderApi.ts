@@ -87,15 +87,22 @@ export interface ListTendersResponse {
 /**
  * Upload a tender file (PDF, Excel, or CSV)
  * @param file File to upload
+ * @param context Optional extraction context/instructions for the AI
  * @param onProgress Optional progress callback
  * @returns Upload response with BOQ extraction
  */
 export async function uploadTender(
   file: File,
+  context?: string,
   onProgress?: (progress: number) => void
 ): Promise<TenderUploadResponse> {
   const formData = new FormData();
   formData.append('tender', file);
+  
+  // Add context if provided
+  if (context) {
+    formData.append('context', context);
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -112,6 +119,18 @@ export async function uploadTender(
 
     xhr.addEventListener('load', () => {
       try {
+        // Check if response has content
+        if (!xhr.responseText || xhr.responseText.trim() === '') {
+          resolve({
+            success: false,
+            error: { 
+              message: 'Server returned an empty response',
+              reason: 'EMPTY_RESPONSE',
+            },
+          });
+          return;
+        }
+
         const response = JSON.parse(xhr.responseText);
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve(response);
@@ -131,6 +150,10 @@ export async function uploadTender(
           error: { 
             message: `Failed to parse response: ${parseError instanceof Error ? parseError.message : 'Unknown error'}`,
             reason: 'PARSE_ERROR',
+            details: {
+              statusCode: xhr.status,
+              responseText: xhr.responseText.substring(0, 200), // Include first 200 chars for debugging
+            },
           },
         });
       }

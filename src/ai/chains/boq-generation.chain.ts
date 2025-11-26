@@ -9,7 +9,6 @@ import { AIExtractionError } from '../../lib/errors';
  */
 export class BOQGenerationChain {
   private model: ChatOpenAI;
-  private prompt: PromptTemplate;
 
   constructor(apiKey?: string) {
     // Initialize the OpenAI model with structured output
@@ -18,10 +17,30 @@ export class BOQGenerationChain {
       temperature: 0,
       openAIApiKey: apiKey || process.env.OPENAI_API_KEY,
     });
+  }
 
-    // Create the prompt template
-    this.prompt = PromptTemplate.fromTemplate(`
+  /**
+   * Build the prompt text with optional user context
+   * @param userContext Optional user-provided context or instructions for extraction
+   * @returns Prompt text string
+   */
+  private buildPromptText(userContext?: string): string {
+    let promptText = `
 You are an expert construction estimator and quantity surveyor. Your task is to analyze tender documents and extract Bill of Quantities (BOQ) information.
+`;
+
+    // Add user context if provided
+    if (userContext && userContext.trim()) {
+      promptText += `
+
+IMPORTANT - User Instructions:
+${userContext}
+
+Please carefully consider these user instructions when extracting the BOQ data.
+`;
+    }
+
+    promptText += `
 
 Given the following tender document text, extract all BOQ items with their details:
 
@@ -39,24 +58,34 @@ Please extract:
 Today's date: {date}
 
 Provide a comprehensive BOQ extraction following the required schema.
-    `);
+    `;
+
+    return promptText;
   }
 
   /**
    * Run the BOQ generation chain on tender document text
    * @param tenderText Extracted text from the tender document
+   * @param userContext Optional user-provided context or instructions for extraction
    * @returns Structured BOQ extraction result
    */
-  async run(tenderText: string): Promise<BOQExtraction> {
+  async run(tenderText: string, userContext?: string): Promise<BOQExtraction> {
     try {
       console.log('🤖 Running AI BOQ extraction...');
       console.log('📝 Text length:', tenderText.length, 'characters');
+      console.log('💬 User context:', userContext ? 'provided' : 'not provided');
       
       // Create the structured output model
       const structuredModel = this.model.withStructuredOutput(BOQExtractionSchema);
 
+      // Build the prompt with optional user context
+      const promptText = this.buildPromptText(userContext);
+
+      // Create a new prompt template with the updated text
+      const dynamicPrompt = PromptTemplate.fromTemplate(promptText);
+
       // Format the prompt
-      const formattedPrompt = await this.prompt.format({
+      const formattedPrompt = await dynamicPrompt.format({
         tenderText,
         date: new Date().toISOString(),
       });
@@ -138,9 +167,16 @@ Provide a comprehensive BOQ extraction following the required schema.
   /**
    * Run the chain with streaming (for future use)
    * @param tenderText Extracted text from the tender document
+   * @param userContext Optional user-provided context or instructions for extraction
    */
-  async *stream(tenderText: string) {
-    const formattedPrompt = await this.prompt.format({
+  async *stream(tenderText: string, userContext?: string) {
+    // Build the prompt with optional user context using the shared helper
+    const promptText = this.buildPromptText(userContext);
+
+    // Create a dynamic prompt template
+    const dynamicPrompt = PromptTemplate.fromTemplate(promptText);
+
+    const formattedPrompt = await dynamicPrompt.format({
       tenderText,
       date: new Date().toISOString(),
     });
