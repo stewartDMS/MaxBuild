@@ -14,6 +14,7 @@ This repository contains:
 
 - 📄 **Document Processing**: Upload and extract text from tender PDF documents, Excel spreadsheets, and CSV files
 - 🤖 **AI-Powered BOQ Extraction**: Automatically generate Bill of Quantities using OpenAI GPT-4
+- 💬 **Custom Extraction Context**: Provide specific instructions to guide AI extraction (e.g., focus on specific item types, include/exclude certain details)
 - 📊 **Multi-Format Support**: Process PDF (.pdf), Excel (.xlsx, .xls), and CSV (.csv) tender documents
 - 📋 **Structured Output**: Zod-validated schemas ensure consistent data structure
 - 💾 **PostgreSQL Storage**: Persist tenders and BOQ items using Prisma ORM
@@ -241,6 +242,7 @@ The production build will be in the `client/dist` directory.
   - Upload a tender PDF, Excel, or CSV file and extract BOQ
   - **Body**: `multipart/form-data`
     - `tender`: PDF, Excel, or CSV file (max 10MB)
+    - `context` (optional): Text instructions to guide AI extraction
     - Supported formats: `.pdf`, `.xlsx`, `.xls`, `.csv`
   - **Success Response**:
     ```json
@@ -335,6 +337,11 @@ curl -X POST http://localhost:3000/api/tenders/upload \
 # Upload CSV
 curl -X POST http://localhost:3000/api/tenders/upload \
   -F "tender=@path/to/tender.csv"
+
+# Upload with Extraction Context
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@path/to/tender.pdf" \
+  -F "context=Focus on electrical items only and include all labor costs"
 ```
 
 **Success Response:**
@@ -576,12 +583,13 @@ The document ingest feature allows you to upload PDF, Excel, or CSV tender docum
 1. Start both backend and frontend as described above
 2. Navigate to `http://localhost:5173` in your browser
 3. In the Dashboard, locate the "Quick Upload" section
-4. Either:
+4. **(Optional)** Enter extraction context in the "Extraction Context" field to guide the AI (e.g., "Focus on electrical items only")
+5. Either:
    - **Drag and drop** a PDF, Excel, or CSV file onto the upload area, or
    - **Click "Browse Files"** and select a file (.pdf, .xlsx, .xls, .csv)
-5. Wait for the upload and BOQ extraction to complete
-6. A success notification will appear with the number of BOQ items extracted
-7. The extracted data is stored in the database and can be viewed via the API
+6. Wait for the upload and BOQ extraction to complete
+7. A success notification will appear with the number of BOQ items extracted
+8. The extracted data is stored in the database and can be viewed via the API
 
 #### Testing via API (curl)
 
@@ -621,6 +629,41 @@ curl http://localhost:3000/api/tenders
 # Get a specific tender with BOQ items
 curl http://localhost:3000/api/tenders/{tender-id}
 ```
+
+#### Extraction Context Feature
+
+The extraction context feature allows you to provide specific instructions to guide the AI's extraction process. This helps ensure the BOQ extraction aligns with your specific requirements.
+
+**How to Use:**
+
+In the frontend:
+1. Locate the "Extraction Context (Optional)" text field in the upload area
+2. Enter your specific instructions (e.g., "Focus on electrical items only", "Include all labor costs", "Extract by building section")
+3. Upload your document - the AI will incorporate your instructions during extraction
+
+Via API:
+```bash
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@path/to/tender.pdf" \
+  -F "context=Focus on electrical and plumbing items only"
+```
+
+**Example Use Cases:**
+
+- **Filter by category**: "Extract only electrical and HVAC items"
+- **Focus on specific details**: "Include all labor costs and material specifications"
+- **Organize by section**: "Group items by building floor or area"
+- **Emphasize accuracy**: "Pay special attention to unit rates and quantities"
+- **Custom requirements**: "Extract items related to sustainability or green building materials"
+
+**Benefits:**
+
+- More accurate extractions aligned with your specific needs
+- Better handling of complex or ambiguous documents
+- Ability to focus on specific aspects of large tender documents
+- Improved categorization and organization of extracted items
+
+**Note:** The extraction context is optional. If not provided, the AI will perform standard BOQ extraction using default instructions. The context is saved with the tender for future reference.
 
 #### Supported Formats
 
