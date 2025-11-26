@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -68,6 +68,15 @@ export function BOQReviewDialog({
   const [error, setError] = useState<string | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [showRejectConfirm, setShowRejectConfirm] = useState(false);
+
+  // Sync items state when boqExtraction prop changes (e.g., when dialog reopens with new data)
+  React.useEffect(() => {
+    setItems(boqExtraction.items);
+    setEditingRows({});
+    setError(null);
+    setRejectReason('');
+    setShowRejectConfirm(false);
+  }, [boqExtraction]);
 
   // Calculate total amount
   const totalAmount = useMemo(() => {

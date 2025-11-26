@@ -137,7 +137,7 @@ export class TenderService {
 
       // Save BOQ items to database (even for review mode, so they can be edited)
       console.log('💾 Saving BOQ items...');
-      const boqItems = boqExtraction.items.map((item: BOQItem) => ({
+      const boqItems = boqExtraction.items.map((item) => ({
         tenderId: tender.id,
         itemNumber: item.itemNumber,
         description: item.description,
@@ -262,7 +262,7 @@ export class TenderService {
         where: { tenderId },
       });
 
-      const boqItems = editedItems.map((item: BOQItemUpdate) => ({
+      const boqItems = editedItems.map((item) => ({
         tenderId,
         itemNumber: item.itemNumber,
         description: item.description,
@@ -382,7 +382,7 @@ export class TenderService {
     });
 
     // Create new BOQ items
-    const boqItems = items.map((item: BOQItemUpdate) => ({
+    const boqItems = items.map((item) => ({
       tenderId,
       itemNumber: item.itemNumber,
       description: item.description,
