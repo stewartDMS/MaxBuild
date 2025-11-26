@@ -530,6 +530,29 @@ cd client
 vercel --prod
 ```
 
+## Security
+
+### Known Vulnerabilities
+
+⚠️ **Important**: The current implementation uses the `xlsx` package (v0.18.5) which has a known high-severity prototype pollution vulnerability (GHSA-4r6h-8v6p-xvw6, CVSS 7.8). This vulnerability affects applications that process user-uploaded files.
+
+**Status**: No fix is available in the xlsx package.
+
+**Recommendation**: For production deployments, consider migrating to `exceljs` (v4.4.0) which has no known vulnerabilities and is actively maintained.
+
+For detailed security analysis and mitigation strategies, see [SECURITY_RECOMMENDATIONS.md](./SECURITY_RECOMMENDATIONS.md).
+
+### Security Best Practices
+
+When deploying this application:
+- Keep all dependencies up to date
+- Run `npm audit` regularly
+- Implement rate limiting (already configured)
+- Use HTTPS in production
+- Secure your OpenAI and database credentials
+- Implement proper authentication and authorization
+- Regular security audits
+
 ## Contributing
 
 Contributions are welcome! Please follow these guidelines:
