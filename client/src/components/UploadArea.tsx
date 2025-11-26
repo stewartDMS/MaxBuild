@@ -5,6 +5,7 @@ import {
   CardContent,
   Typography,
   Button,
+  TextField,
   useTheme,
   CircularProgress,
   LinearProgress,
@@ -43,6 +44,7 @@ export function UploadArea({
   const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [extractionContext, setExtractionContext] = useState('');
 
   const handleFileSelect = useCallback(
     (file: File) => {
@@ -69,8 +71,8 @@ export function UploadArea({
       // Trigger upload
       onUploadStart?.();
 
-      // Perform the upload
-      uploadTender(file)
+      // Perform the upload with optional context
+      uploadTender(file, extractionContext.trim() || undefined)
         .then((response) => {
           if (response.success && response.data) {
             onUploadComplete?.({
@@ -79,6 +81,8 @@ export function UploadArea({
               itemCount: response.data.itemCount,
               tenderId: response.data.tenderId,
             });
+            // Clear the context after successful upload
+            setExtractionContext('');
           } else {
             onUploadComplete?.({
               success: false,
@@ -94,7 +98,7 @@ export function UploadArea({
           });
         });
     },
-    [onUploadStart, onUploadComplete, onUploadError]
+    [onUploadStart, onUploadComplete, onUploadError, extractionContext]
   );
 
   const handleDragEnter = useCallback((e: DragEvent<HTMLDivElement>) => {
@@ -235,10 +239,33 @@ export function UploadArea({
             />
           </Box>
         ) : (
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
-            Drag and drop your tender document here, or click the button below to browse files.
-            Supported formats: PDF, Excel (.xlsx, .xls), CSV - max 10MB
-          </Typography>
+          <>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 400 }}>
+              Drag and drop your tender document here, or click the button below to browse files.
+              Supported formats: PDF, Excel (.xlsx, .xls), CSV - max 10MB
+            </Typography>
+
+            {/* Extraction Context Input */}
+            <Box sx={{ width: '100%', maxWidth: 500, mb: 3 }}>
+              <TextField
+                fullWidth
+                multiline
+                rows={3}
+                label="Extraction Context (Optional)"
+                placeholder="E.g., Focus on electrical items only, Include labor costs, Extract by building section..."
+                value={extractionContext}
+                onChange={(e) => setExtractionContext(e.target.value)}
+                disabled={isUploading}
+                helperText="Provide specific instructions to guide the AI extraction process"
+                variant="outlined"
+                sx={{
+                  '& .MuiOutlinedInput-root': {
+                    backgroundColor: theme.palette.background.paper,
+                  },
+                }}
+              />
+            </Box>
+          </>
         )}
 
         {/* Browse button */}

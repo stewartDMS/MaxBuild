@@ -87,15 +87,22 @@ export interface ListTendersResponse {
 /**
  * Upload a tender file (PDF, Excel, or CSV)
  * @param file File to upload
+ * @param context Optional extraction context/instructions for the AI
  * @param onProgress Optional progress callback
  * @returns Upload response with BOQ extraction
  */
 export async function uploadTender(
   file: File,
+  context?: string,
   onProgress?: (progress: number) => void
 ): Promise<TenderUploadResponse> {
   const formData = new FormData();
   formData.append('tender', file);
+  
+  // Add context if provided
+  if (context) {
+    formData.append('context', context);
+  }
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

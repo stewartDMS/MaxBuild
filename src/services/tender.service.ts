@@ -36,15 +36,17 @@ export class TenderService {
    * @param fileName Original file name
    * @param fileSize File size in bytes
    * @param mimeType MIME type of the file
+   * @param context Optional user-provided extraction context/instructions
    * @returns Processing result with BOQ extraction
    */
   async processTender(
     filePath: string,
     fileName: string,
     fileSize: number,
-    mimeType: string
+    mimeType: string,
+    context?: string
   ): Promise<TenderUploadResult> {
-    console.log('🚀 Starting tender processing:', { fileName, fileSize, mimeType });
+    console.log('🚀 Starting tender processing:', { fileName, fileSize, mimeType, hasContext: !!context });
     
     let extractedText: string;
     let boqExtraction: BOQExtraction;
@@ -66,13 +68,13 @@ export class TenderService {
       if (isCSV) {
         // Process CSV file
         console.log('📊 Processing CSV file...');
-        const result = await this.csvService.processCSV(filePath);
+        const result = await this.csvService.processCSV(filePath, context);
         extractedText = result.extractedText;
         boqExtraction = result.boqExtraction;
       } else if (isExcel) {
         // Process Excel file
         console.log('📊 Processing Excel file...');
-        const result = await this.excelService.processExcel(filePath);
+        const result = await this.excelService.processExcel(filePath, context);
         extractedText = result.extractedText;
         boqExtraction = result.boqExtraction;
       } else {
@@ -85,7 +87,7 @@ export class TenderService {
         }
 
         // Run BOQ generation chain
-        boqExtraction = await this.boqChain.run(extractedText);
+        boqExtraction = await this.boqChain.run(extractedText, context);
       }
 
       // Create tender record in database
@@ -96,6 +98,7 @@ export class TenderService {
           fileSize,
           mimeType,
           extractedText,
+          extractionContext: context || null,
           status: 'processing',
         },
       });

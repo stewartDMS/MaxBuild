@@ -45,18 +45,59 @@ Provide a comprehensive BOQ extraction following the required schema.
   /**
    * Run the BOQ generation chain on tender document text
    * @param tenderText Extracted text from the tender document
+   * @param userContext Optional user-provided context or instructions for extraction
    * @returns Structured BOQ extraction result
    */
-  async run(tenderText: string): Promise<BOQExtraction> {
+  async run(tenderText: string, userContext?: string): Promise<BOQExtraction> {
     try {
       console.log('🤖 Running AI BOQ extraction...');
       console.log('📝 Text length:', tenderText.length, 'characters');
+      console.log('💬 User context:', userContext ? 'provided' : 'not provided');
       
       // Create the structured output model
       const structuredModel = this.model.withStructuredOutput(BOQExtractionSchema);
 
+      // Build the prompt with optional user context
+      let promptText = `
+You are an expert construction estimator and quantity surveyor. Your task is to analyze tender documents and extract Bill of Quantities (BOQ) information.
+`;
+
+      // Add user context if provided
+      if (userContext && userContext.trim()) {
+        promptText += `
+
+IMPORTANT - User Instructions:
+${userContext}
+
+Please carefully consider these user instructions when extracting the BOQ data.
+`;
+      }
+
+      promptText += `
+
+Given the following tender document text, extract all BOQ items with their details:
+
+Tender Document Text:
+{tenderText}
+
+Please extract:
+1. All work items with their item numbers
+2. Detailed descriptions of each item
+3. Quantities and units of measurement
+4. Any rates or amounts mentioned
+5. Categories or trades (civil, electrical, plumbing, etc.)
+6. Project information if available
+
+Today's date: {date}
+
+Provide a comprehensive BOQ extraction following the required schema.
+      `;
+
+      // Create a new prompt template with the updated text
+      const dynamicPrompt = PromptTemplate.fromTemplate(promptText);
+
       // Format the prompt
-      const formattedPrompt = await this.prompt.format({
+      const formattedPrompt = await dynamicPrompt.format({
         tenderText,
         date: new Date().toISOString(),
       });

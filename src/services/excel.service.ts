@@ -19,9 +19,10 @@ export class ExcelService {
   /**
    * Process an Excel file and extract BOQ data
    * @param filePath Path to the Excel file
+   * @param userContext Optional user-provided context or instructions for extraction
    * @returns BOQ extraction result and raw Excel data
    */
-  async processExcel(filePath: string): Promise<{
+  async processExcel(filePath: string, userContext?: string): Promise<{
     boqExtraction: BOQExtraction;
     extractedText: string;
     excelData: ExcelData;
@@ -42,7 +43,7 @@ export class ExcelService {
     const extractedText = this.excelLoader.convertToText(excelData);
 
     // Step 4: Run BOQ generation chain on the extracted text
-    const boqExtraction = await this.boqChain.run(extractedText);
+    const boqExtraction = await this.boqChain.run(extractedText, userContext);
 
     console.log('✅ Excel processing completed');
 
@@ -56,9 +57,10 @@ export class ExcelService {
   /**
    * Process an Excel file from a buffer
    * @param buffer Excel file buffer
+   * @param userContext Optional user-provided context or instructions for extraction
    * @returns BOQ extraction result and raw Excel data
    */
-  async processExcelFromBuffer(buffer: Buffer): Promise<{
+  async processExcelFromBuffer(buffer: Buffer, userContext?: string): Promise<{
     boqExtraction: BOQExtraction;
     extractedText: string;
     excelData: ExcelData;
@@ -78,7 +80,7 @@ export class ExcelService {
     const extractedText = this.excelLoader.convertToText(excelData);
 
     // Run BOQ generation chain on the extracted text
-    const boqExtraction = await this.boqChain.run(extractedText);
+    const boqExtraction = await this.boqChain.run(extractedText, userContext);
 
     console.log('✅ Excel buffer processing completed');
 

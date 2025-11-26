@@ -24,11 +24,13 @@ export class TenderController {
       }
 
       const { path: filePath, originalname, size, mimetype } = req.file;
+      const context = req.body.context; // Optional user-provided extraction context
 
       console.log('📄 Processing tender upload:', {
         fileName: originalname,
         fileSize: `${(size / 1024).toFixed(2)} KB`,
         mimeType: mimetype,
+        hasContext: !!context,
       });
 
       // Process the tender
@@ -36,7 +38,8 @@ export class TenderController {
         filePath,
         originalname,
         size,
-        mimetype
+        mimetype,
+        context
       );
 
       // Clean up the uploaded file after processing
