@@ -9,6 +9,11 @@ const tenderController = new TenderController();
 /**
  * POST /api/tenders/upload
  * Upload a tender PDF and extract BOQ
+ * 
+ * Body parameters:
+ * - tender: File to upload
+ * - context: Optional extraction context/instructions
+ * - requiresReview: If "true", saves to pending_review status for user confirmation
  */
 router.post(
   '/upload',
@@ -16,6 +21,51 @@ router.post(
   upload.single('tender'),
   handleMulterError,
   (req: Request, res: Response, next: NextFunction) => tenderController.uploadTender(req, res, next)
+);
+
+/**
+ * POST /api/tenders/:id/approve
+ * Approve and finalize a tender after user review
+ * 
+ * Body parameters:
+ * - items: Optional array of edited BOQ items to save
+ */
+router.post(
+  '/:id/approve',
+  (req: Request, res: Response, next: NextFunction) => tenderController.approveTender(req, res, next)
+);
+
+/**
+ * POST /api/tenders/:id/reject
+ * Reject a tender extraction
+ * 
+ * Body parameters:
+ * - reason: Optional rejection reason
+ */
+router.post(
+  '/:id/reject',
+  (req: Request, res: Response, next: NextFunction) => tenderController.rejectTender(req, res, next)
+);
+
+/**
+ * PUT /api/tenders/:id/items
+ * Update BOQ items for a tender
+ * 
+ * Body parameters:
+ * - items: Array of BOQ items to save
+ */
+router.put(
+  '/:id/items',
+  (req: Request, res: Response, next: NextFunction) => tenderController.updateBOQItems(req, res, next)
+);
+
+/**
+ * GET /api/tenders/:id/review-logs
+ * Get review logs for a tender
+ */
+router.get(
+  '/:id/review-logs',
+  (req: Request, res: Response, next: NextFunction) => tenderController.getReviewLogs(req, res, next)
 );
 
 /**

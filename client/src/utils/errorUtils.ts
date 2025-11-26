@@ -32,7 +32,7 @@ export function formatErrorMessage(error: ErrorResponse): {
   const title = errorTitles[reason] || 'Upload Failed';
 
   // Get suggestion from details if available
-  const suggestion = details?.suggestion;
+  const suggestion = typeof details?.suggestion === 'string' ? details.suggestion : undefined;
 
   return {
     title,

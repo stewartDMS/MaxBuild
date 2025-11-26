@@ -10,6 +10,9 @@ import {
   useTheme,
   CircularProgress,
   LinearProgress,
+  FormControlLabel,
+  Switch,
+  Tooltip,
   type SxProps,
   type Theme,
 } from '@mui/material';
@@ -18,8 +21,9 @@ import {
   Description as DescriptionIcon,
   Close as CloseIcon,
   PlayArrow as PlayArrowIcon,
+  RateReview as RateReviewIcon,
 } from '@mui/icons-material';
-import { uploadTender } from '../api/tenderApi';
+import { uploadTender, type BOQExtraction } from '../api/tenderApi';
 
 export interface UploadResult {
   success: boolean;
@@ -28,6 +32,10 @@ export interface UploadResult {
   tenderId?: string;
   error?: string;
   errorResponse?: import('../api/tenderApi').ErrorResponse;
+  /** Set when requiresReview is true and extraction is pending user review */
+  pendingReview?: boolean;
+  /** BOQ extraction data when pending review */
+  boqExtraction?: BOQExtraction;
 }
 
 interface UploadAreaProps {
@@ -36,6 +44,8 @@ interface UploadAreaProps {
   onUploadError?: (error: string) => void;
   isUploading?: boolean;
   uploadProgress?: number;
+  /** Default value for the review mode toggle */
+  defaultRequiresReview?: boolean;
   sx?: SxProps<Theme>;
 }
 
@@ -45,6 +55,7 @@ export function UploadArea({
   onUploadError,
   isUploading = false,
   uploadProgress = 0,
+  defaultRequiresReview = true,
   sx,
 }: UploadAreaProps) {
   const theme = useTheme();
@@ -52,6 +63,7 @@ export function UploadArea({
   const [isDragging, setIsDragging] = useState(false);
   const [extractionContext, setExtractionContext] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [requiresReview, setRequiresReview] = useState(defaultRequiresReview);
 
   const handleFileSelect = useCallback(
     (file: File) => {
@@ -87,15 +99,18 @@ export function UploadArea({
     // Trigger upload
     onUploadStart?.();
 
-    // Perform the upload with optional context
-    uploadTender(selectedFile, extractionContext.trim() || undefined)
+    // Perform the upload with optional context and review flag
+    uploadTender(selectedFile, extractionContext.trim() || undefined, requiresReview)
       .then((response) => {
         if (response.success && response.data) {
+          const isPendingReview = response.data.status === 'pending_review';
           onUploadComplete?.({
             success: true,
             fileName: response.data.fileName,
             itemCount: response.data.itemCount,
             tenderId: response.data.tenderId,
+            pendingReview: isPendingReview,
+            boqExtraction: isPendingReview ? response.data.boqExtraction : undefined,
           });
           // Clear the context and file after successful upload
           setExtractionContext('');
@@ -114,7 +129,7 @@ export function UploadArea({
           error: error.message || 'Upload failed',
         });
       });
-  }, [selectedFile, extractionContext, onUploadStart, onUploadComplete]);
+  }, [selectedFile, extractionContext, requiresReview, onUploadStart, onUploadComplete]);
 
   const handleDragEnter = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -296,6 +311,41 @@ export function UploadArea({
               />
             </Box>
 
+            {/* Review Mode Toggle */}
+            <Box sx={{ width: '100%', maxWidth: 500, mb: 3 }}>
+              <Tooltip 
+                title={requiresReview 
+                  ? "Results will be shown for review before saving" 
+                  : "Results will be saved automatically without review"
+                }
+              >
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={requiresReview}
+                      onChange={(e) => setRequiresReview(e.target.checked)}
+                      disabled={isUploading}
+                      color="primary"
+                    />
+                  }
+                  label={
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <RateReviewIcon fontSize="small" color={requiresReview ? 'primary' : 'disabled'} />
+                      <Typography variant="body2">
+                        Review before saving
+                      </Typography>
+                    </Box>
+                  }
+                />
+              </Tooltip>
+              <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.5 }}>
+                {requiresReview 
+                  ? "You'll be able to review and edit the extracted BOQ before finalizing" 
+                  : "Extraction will be saved automatically (backward compatible mode)"
+                }
+              </Typography>
+            </Box>
+
             {/* Action buttons */}
             <Box sx={{ display: 'flex', gap: 2 }}>
               <Button
@@ -316,7 +366,7 @@ export function UploadArea({
                 disabled={isUploading}
                 aria-label="Start processing document"
               >
-                Start Processing
+                {requiresReview ? 'Extract & Review' : 'Start Processing'}
               </Button>
             </Box>
           </>

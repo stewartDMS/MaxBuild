@@ -19,6 +19,8 @@ This repository contains:
 - 📋 **Structured Output**: Zod-validated schemas ensure consistent data structure
 - 💾 **PostgreSQL Storage**: Persist tenders and BOQ items using Prisma ORM
 - 🔄 **RESTful API**: Clean, well-documented REST endpoints
+- ✅ **Review Workflow**: Review and edit extracted BOQ data before finalizing (with approve/reject actions)
+- 📝 **Audit Logging**: Track all review actions for traceability and compliance
 
 ## Technology Stack
 
@@ -243,8 +245,9 @@ The production build will be in the `client/dist` directory.
   - **Body**: `multipart/form-data`
     - `tender`: PDF, Excel, or CSV file (max 10MB)
     - `context` (optional): Text instructions to guide AI extraction
+    - `requiresReview` (optional): If `"true"`, saves to `pending_review` status for user confirmation before finalizing. Defaults to `false` for backward compatibility.
     - Supported formats: `.pdf`, `.xlsx`, `.xls`, `.csv`
-  - **Success Response**:
+  - **Success Response** (when `requiresReview=false` or not provided):
     ```json
     {
       "success": true,
@@ -259,6 +262,25 @@ The production build will be in the `client/dist` directory.
           "currency": "USD"
         },
         "itemCount": 25
+      }
+    }
+    ```
+  - **Success Response** (when `requiresReview=true`):
+    ```json
+    {
+      "success": true,
+      "data": {
+        "tenderId": "uuid",
+        "fileName": "tender.pdf",
+        "status": "pending_review",
+        "boqExtraction": {
+          "projectName": "Example Project",
+          "items": [...],
+          "totalEstimatedCost": 1000000,
+          "currency": "USD"
+        },
+        "itemCount": 25,
+        "extractedText": "..."
       }
     }
     ```
@@ -281,6 +303,76 @@ The production build will be in the `client/dist` directory.
     - `400`: Validation error (file type, size, structure, etc.)
     - `413`: File too large
     - `500`: Server or AI extraction error
+
+#### Approve Tender (Review Workflow)
+- **POST** `/api/tenders/:id/approve`
+  - Approve and finalize a tender extraction after user review
+  - **Body** (JSON):
+    - `items` (optional): Array of edited BOQ items to save
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "tenderId": "uuid",
+        "action": "approved",
+        "status": "completed",
+        "message": "Tender extraction approved and finalized successfully"
+      }
+    }
+    ```
+
+#### Reject Tender (Review Workflow)
+- **POST** `/api/tenders/:id/reject`
+  - Reject a tender extraction
+  - **Body** (JSON):
+    - `reason` (optional): Rejection reason for audit logging
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "data": {
+        "tenderId": "uuid",
+        "action": "rejected",
+        "status": "rejected",
+        "message": "Tender extraction rejected"
+      }
+    }
+    ```
+
+#### Update BOQ Items (Review Workflow)
+- **PUT** `/api/tenders/:id/items`
+  - Update BOQ items for a tender
+  - **Body** (JSON):
+    - `items`: Array of BOQ items to save
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "data": { /* Updated tender with BOQ items */ }
+    }
+    ```
+
+#### Get Review Logs
+- **GET** `/api/tenders/:id/review-logs`
+  - Get review action logs for a tender (for audit/traceability)
+  - **Response**:
+    ```json
+    {
+      "success": true,
+      "data": [
+        {
+          "id": "uuid",
+          "tenderId": "uuid",
+          "action": "approved",
+          "details": "{\"previousStatus\":\"pending_review\"}",
+          "userId": null,
+          "ipAddress": "127.0.0.1",
+          "createdAt": "2024-01-01T00:00:00.000Z"
+        }
+      ]
+    }
+    ```
 
 #### List Tenders
 - **GET** `/api/tenders?skip=0&take=10`
@@ -584,19 +676,29 @@ The document ingest feature allows you to upload PDF, Excel, or CSV tender docum
 2. Navigate to `http://localhost:5173` in your browser
 3. In the Dashboard, locate the "Quick Upload" section
 4. **(Optional)** Enter extraction context in the "Extraction Context" field to guide the AI (e.g., "Focus on electrical items only")
-5. Either:
+5. **(Optional)** Toggle "Review before saving" to enable the review workflow (enabled by default)
+6. Either:
    - **Drag and drop** a PDF, Excel, or CSV file onto the upload area, or
    - **Click "Browse Files"** and select a file (.pdf, .xlsx, .xls, .csv)
-6. Wait for the upload and BOQ extraction to complete
-7. A success notification will appear with the number of BOQ items extracted
-8. The extracted data is stored in the database and can be viewed via the API
+7. Click "Extract & Review" (if review mode is enabled) or "Start Processing" (if disabled)
+8. **If review mode is enabled:**
+   - A review dialog will appear showing the extracted BOQ items in an editable table
+   - You can edit individual items inline, add new items, or delete items
+   - Click "Approve" to save the extraction, or "Reject" to discard it
+9. A success notification will appear with the result
+10. The extracted data is stored in the database and can be viewed via the API
 
 #### Testing via API (curl)
 
 ```bash
-# Upload a tender PDF
+# Upload a tender PDF (auto-save, no review)
 curl -X POST http://localhost:3000/api/tenders/upload \
   -F "tender=@path/to/your-tender.pdf"
+
+# Upload with review workflow enabled
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@path/to/your-tender.pdf" \
+  -F "requiresReview=true"
 
 # Upload a tender Excel
 curl -X POST http://localhost:3000/api/tenders/upload \
@@ -606,7 +708,7 @@ curl -X POST http://localhost:3000/api/tenders/upload \
 curl -X POST http://localhost:3000/api/tenders/upload \
   -F "tender=@path/to/your-tender.csv"
 
-# Expected response:
+# Expected response (auto-save mode):
 # {
 #   "success": true,
 #   "data": {
@@ -620,6 +722,19 @@ curl -X POST http://localhost:3000/api/tenders/upload \
 #       "currency": "USD"
 #     },
 #     "itemCount": 25
+#   }
+# }
+
+# Expected response (review mode):
+# {
+#   "success": true,
+#   "data": {
+#     "tenderId": "uuid-here",
+#     "fileName": "your-tender.pdf",
+#     "status": "pending_review",
+#     "boqExtraction": {...},
+#     "itemCount": 25,
+#     "extractedText": "..."
 #   }
 # }
 
@@ -664,6 +779,68 @@ curl -X POST http://localhost:3000/api/tenders/upload \
 - Improved categorization and organization of extracted items
 
 **Note:** The extraction context is optional. If not provided, the AI will perform standard BOQ extraction using default instructions. The context is saved with the tender for future reference.
+
+#### Review Workflow Feature
+
+The review workflow allows users to review, edit, and approve AI-extracted BOQ data before finalizing and saving to the database.
+
+**How It Works:**
+
+1. **Enable Review Mode**: Toggle "Review before saving" in the upload area (enabled by default)
+2. **Upload Document**: Select and upload your tender document
+3. **Review Extraction**: A dialog appears showing the extracted BOQ items in an editable table
+4. **Edit Items**: 
+   - Click the edit icon on any row to modify values inline
+   - Add new items using the "Add Item" button
+   - Delete unwanted items using the delete icon
+   - Changes are highlighted for visibility
+5. **Approve or Reject**:
+   - Click "Approve" (or "Save & Approve" if items were modified) to finalize and save
+   - Click "Reject" to discard the extraction (with optional reason for audit logging)
+6. **Audit Trail**: All review actions are logged for traceability and compliance
+
+**Via API:**
+
+```bash
+# Upload with review mode enabled
+curl -X POST http://localhost:3000/api/tenders/upload \
+  -F "tender=@path/to/tender.pdf" \
+  -F "requiresReview=true"
+
+# Approve the extraction (with optional edited items)
+curl -X POST http://localhost:3000/api/tenders/{tenderId}/approve \
+  -H "Content-Type: application/json" \
+  -d '{"items": [...]}'
+
+# Reject the extraction (with optional reason)
+curl -X POST http://localhost:3000/api/tenders/{tenderId}/reject \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "Data quality issues"}'
+
+# Get review logs for audit
+curl http://localhost:3000/api/tenders/{tenderId}/review-logs
+```
+
+**Tender Statuses:**
+
+| Status | Description |
+|--------|-------------|
+| `pending` | Initial status when tender is created |
+| `processing` | Extraction is in progress |
+| `pending_review` | Extraction complete, awaiting user review |
+| `completed` | Extraction approved and finalized |
+| `rejected` | Extraction rejected by user |
+
+**Benefits:**
+
+- Quality control over AI-extracted data
+- Ability to correct extraction errors before saving
+- Audit trail for compliance and traceability
+- Backward compatible - existing automations continue to work
+
+**Backward Compatibility:**
+
+The review workflow is opt-in. If `requiresReview` is not provided or set to `false`, the system behaves exactly as before - extractions are saved automatically without user intervention. This ensures existing integrations and automations continue to work without modification.
 
 #### Supported Formats
 

@@ -16,6 +16,11 @@ export class TenderController {
   /**
    * Upload and process a tender PDF
    * POST /api/tenders/upload
+   * 
+   * Body parameters:
+   * - tender: File to upload
+   * - context: Optional extraction context/instructions
+   * - requiresReview: If "true", saves to pending_review status for user confirmation
    */
   async uploadTender(req: Request, res: Response, next: NextFunction) {
     try {
@@ -25,12 +30,15 @@ export class TenderController {
 
       const { path: filePath, originalname, size, mimetype } = req.file;
       const context = req.body.context; // Optional user-provided extraction context
+      // Parse requiresReview as boolean (defaults to false for backward compatibility)
+      const requiresReview = req.body.requiresReview === 'true' || req.body.requiresReview === true;
 
       console.log('📄 Processing tender upload:', {
         fileName: originalname,
         fileSize: `${(size / 1024).toFixed(2)} KB`,
         mimeType: mimetype,
         hasContext: !!context,
+        requiresReview,
       });
 
       // Process the tender
@@ -39,7 +47,8 @@ export class TenderController {
         originalname,
         size,
         mimetype,
-        context
+        context,
+        requiresReview
       );
 
       // Clean up the uploaded file after processing
@@ -64,6 +73,113 @@ export class TenderController {
           console.warn('⚠️  Failed to delete uploaded file after error:', err);
         });
       }
+      next(error);
+    }
+  }
+
+  /**
+   * Approve and finalize a tender after user review
+   * POST /api/tenders/:id/approve
+   * 
+   * Body parameters:
+   * - items: Optional array of edited BOQ items to save
+   */
+  async approveTender(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { items } = req.body;
+      
+      // Get client IP for audit logging
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || undefined;
+
+      const result = await this.tenderService.approveTender(id, items, ipAddress);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Reject a tender extraction
+   * POST /api/tenders/:id/reject
+   * 
+   * Body parameters:
+   * - reason: Optional rejection reason
+   */
+  async rejectTender(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { reason } = req.body;
+      
+      // Get client IP for audit logging
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || undefined;
+
+      const result = await this.tenderService.rejectTender(id, reason, ipAddress);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Update BOQ items for a tender
+   * PUT /api/tenders/:id/items
+   * 
+   * Body parameters:
+   * - items: Array of BOQ items to save
+   */
+  async updateBOQItems(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+      const { items } = req.body;
+      
+      if (!items || !Array.isArray(items)) {
+        return res.status(400).json({
+          success: false,
+          error: {
+            message: 'Items array is required',
+            reason: 'VALIDATION_ERROR',
+          },
+        });
+      }
+
+      // Get client IP for audit logging
+      const ipAddress = req.ip || req.headers['x-forwarded-for'] as string || undefined;
+
+      const result = await this.tenderService.updateBOQItems(id, items, ipAddress);
+
+      res.status(200).json({
+        success: true,
+        data: result,
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Get review logs for a tender
+   * GET /api/tenders/:id/review-logs
+   */
+  async getReviewLogs(req: Request, res: Response, next: NextFunction) {
+    try {
+      const { id } = req.params;
+
+      const logs = await this.tenderService.getReviewLogs(id);
+
+      res.status(200).json({
+        success: true,
+        data: logs,
+      });
+    } catch (error) {
       next(error);
     }
   }
