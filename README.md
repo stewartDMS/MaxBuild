@@ -31,7 +31,8 @@ This repository contains:
 - **Zod** - Schema validation
 - **Multer** - File upload handling
 - **pdf-parse** - PDF text extraction
-- **xlsx** - Excel file parsing and data extraction
+- **exceljs** - Excel file parsing and data extraction (secure, actively maintained)
+- **csv-parse** - CSV file parsing
 
 ### Frontend
 - **React 19** - UI library
@@ -529,6 +530,28 @@ Alternatively, you can deploy using the Vercel CLI:
 cd client
 vercel --prod
 ```
+
+## Security
+
+### Security Updates
+
+✅ **Resolved**: The application has been migrated from `xlsx` (v0.18.5) to `exceljs` (v4.4.0) to address a high-severity prototype pollution vulnerability (GHSA-4r6h-8v6p-xvw6, CVSS 7.8).
+
+**Changes Made**:
+- Replaced `xlsx` package with `exceljs` for Excel file parsing
+- Replaced xlsx-based CSV parsing with dedicated `csv-parse` library
+- Both packages are actively maintained with no known security vulnerabilities
+
+### Security Best Practices
+
+When deploying this application:
+- Keep all dependencies up to date
+- Run `npm audit` regularly
+- Implement rate limiting (already configured)
+- Use HTTPS in production
+- Secure your OpenAI and database credentials
+- Implement proper authentication and authorization
+- Regular security audits
 
 ## Contributing
 

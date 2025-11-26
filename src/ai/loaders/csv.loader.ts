@@ -1,8 +1,9 @@
 import fs from 'fs/promises';
-import * as XLSX from 'xlsx';
+import { parse } from 'csv-parse/sync';
 
 /**
  * Loads and extracts data from CSV files
+ * Now using csv-parse instead of xlsx for better performance and security
  */
 export class CSVLoader {
   /**
@@ -12,30 +13,25 @@ export class CSVLoader {
    */
   async load(filePath: string): Promise<CSVData> {
     try {
-      // Read the CSV file as a buffer
-      const dataBuffer = await fs.readFile(filePath);
+      // Read the CSV file
+      const fileContent = await fs.readFile(filePath, 'utf-8');
       
-      // Parse the CSV using xlsx library (which supports CSV)
-      const workbook = XLSX.read(dataBuffer, { type: 'buffer' });
+      // Parse the CSV
+      const records = parse(fileContent, {
+        columns: true, // Use first row as headers
+        skip_empty_lines: true,
+        trim: true,
+        cast: false, // Keep all values as strings
+      }) as Record<string, string>[];
       
-      // Get the first (and typically only) sheet
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
-      
-      // Convert sheet to JSON with header row
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-        defval: '',
-        raw: false, // Keep values as strings for consistency
-      });
-      
-      // Get the range of the sheet
-      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      // Get column count from headers
+      const headers = records.length > 0 ? Object.keys(records[0]) : [];
       
       return {
         fileName: filePath.split('/').pop() || 'unknown',
-        data: jsonData as Record<string, string>[],
-        rowCount: range.e.r - range.s.r + 1,
-        columnCount: range.e.c - range.s.c + 1,
+        data: records,
+        rowCount: records.length + 1, // +1 for header row
+        columnCount: headers.length,
       };
     } catch (error) {
       console.error('Error loading CSV:', error);
@@ -50,27 +46,25 @@ export class CSVLoader {
    */
   async loadFromBuffer(buffer: Buffer): Promise<CSVData> {
     try {
-      // Parse the CSV using xlsx library
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      // Convert buffer to string
+      const fileContent = buffer.toString('utf-8');
       
-      // Get the first (and typically only) sheet
-      const sheetName = workbook.SheetNames[0];
-      const worksheet = workbook.Sheets[sheetName];
+      // Parse the CSV
+      const records = parse(fileContent, {
+        columns: true, // Use first row as headers
+        skip_empty_lines: true,
+        trim: true,
+        cast: false, // Keep all values as strings
+      }) as Record<string, string>[];
       
-      // Convert sheet to JSON with header row
-      const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-        defval: '',
-        raw: false, // Keep values as strings for consistency
-      });
-      
-      // Get the range of the sheet
-      const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+      // Get column count from headers
+      const headers = records.length > 0 ? Object.keys(records[0]) : [];
       
       return {
         fileName: 'buffer',
-        data: jsonData as Record<string, string>[],
-        rowCount: range.e.r - range.s.r + 1,
-        columnCount: range.e.c - range.s.c + 1,
+        data: records,
+        rowCount: records.length + 1, // +1 for header row
+        columnCount: headers.length,
       };
     } catch (error) {
       console.error('Error loading CSV from buffer:', error);
