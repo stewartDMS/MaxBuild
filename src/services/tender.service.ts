@@ -75,7 +75,7 @@ export class TenderService {
         const result = await this.excelService.processExcel(filePath);
         extractedText = result.extractedText;
         boqExtraction = result.boqExtraction;
-      } else if (isPDF) {
+      } else {
         // Process PDF file
         console.log('📄 Processing PDF file...');
         extractedText = await this.pdfLoader.load(filePath);
@@ -86,12 +86,6 @@ export class TenderService {
 
         // Run BOQ generation chain
         boqExtraction = await this.boqChain.run(extractedText);
-      } else {
-        throw new UnsupportedFileTypeError(mimeType, [
-          'PDF (.pdf)',
-          'Excel (.xlsx, .xls)',
-          'CSV (.csv)',
-        ]);
       }
 
       // Create tender record in database
