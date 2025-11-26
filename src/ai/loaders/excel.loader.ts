@@ -1,8 +1,8 @@
-import fs from 'fs/promises';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 /**
  * Loads and extracts data from Excel files (.xlsx, .xls)
+ * Now using ExcelJS instead of xlsx for better security (no prototype pollution vulnerability)
  */
 export class ExcelLoader {
   /**
@@ -12,38 +12,67 @@ export class ExcelLoader {
    */
   async load(filePath: string): Promise<ExcelData> {
     try {
-      // Read the Excel file as a buffer
-      const dataBuffer = await fs.readFile(filePath);
-      
-      // Parse the workbook
-      const workbook = XLSX.read(dataBuffer, { type: 'buffer' });
+      // Create a new workbook and read the file
+      const workbook = new ExcelJS.Workbook();
+      await workbook.xlsx.readFile(filePath);
       
       // Extract data from all sheets
       const sheets: SheetData[] = [];
       
-      for (const sheetName of workbook.SheetNames) {
-        const worksheet = workbook.Sheets[sheetName];
+      workbook.eachSheet((worksheet) => {
+        const sheetData: Record<string, string>[] = [];
+        const headers: string[] = [];
         
-        // Convert sheet to JSON with header row
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-          defval: '',
-          raw: false, // Keep values as strings for consistency
+        // Get the actual dimensions of the worksheet
+        const rowCount = worksheet.rowCount;
+        const columnCount = worksheet.columnCount;
+        
+        // First row as headers
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          headers[colNumber] = String(cell.value || `Column${colNumber}`);
         });
         
-        // Get the range of the sheet
-        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        // Process data rows (starting from row 2)
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header row
+          
+          const rowData: Record<string, string> = {};
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const header = headers[colNumber] || `Column${colNumber}`;
+            // Convert cell value to string, handling different types
+            let value = '';
+            if (cell.value !== null && cell.value !== undefined) {
+              if (typeof cell.value === 'object' && 'result' in cell.value) {
+                // Handle formula cells
+                value = String(cell.value.result || '');
+              } else if (typeof cell.value === 'object' && 'text' in cell.value) {
+                // Handle rich text
+                value = String(cell.value.text || '');
+              } else {
+                value = String(cell.value);
+              }
+            }
+            rowData[header] = value;
+          });
+          
+          // Only add row if it has at least one non-empty value
+          if (Object.values(rowData).some(v => v !== '')) {
+            sheetData.push(rowData);
+          }
+        });
         
         sheets.push({
-          name: sheetName,
-          data: jsonData as Record<string, string>[],
-          rowCount: range.e.r - range.s.r + 1,
-          columnCount: range.e.c - range.s.c + 1,
+          name: worksheet.name,
+          data: sheetData,
+          rowCount: rowCount,
+          columnCount: columnCount,
         });
-      }
+      });
       
       return {
         fileName: filePath.split('/').pop() || 'unknown',
-        sheetCount: workbook.SheetNames.length,
+        sheetCount: sheets.length,
         sheets,
       };
     } catch (error) {
@@ -59,35 +88,69 @@ export class ExcelLoader {
    */
   async loadFromBuffer(buffer: Buffer): Promise<ExcelData> {
     try {
-      // Parse the workbook
-      const workbook = XLSX.read(buffer, { type: 'buffer' });
+      // Create a new workbook and read from buffer
+      const workbook = new ExcelJS.Workbook();
+      // Convert Buffer to Uint8Array for exceljs compatibility
+      const uint8Array = new Uint8Array(buffer);
+      await workbook.xlsx.load(uint8Array.buffer);
       
       // Extract data from all sheets
       const sheets: SheetData[] = [];
       
-      for (const sheetName of workbook.SheetNames) {
-        const worksheet = workbook.Sheets[sheetName];
+      workbook.eachSheet((worksheet) => {
+        const sheetData: Record<string, string>[] = [];
+        const headers: string[] = [];
         
-        // Convert sheet to JSON with header row
-        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
-          defval: '',
-          raw: false, // Keep values as strings for consistency
+        // Get the actual dimensions of the worksheet
+        const rowCount = worksheet.rowCount;
+        const columnCount = worksheet.columnCount;
+        
+        // First row as headers
+        const headerRow = worksheet.getRow(1);
+        headerRow.eachCell({ includeEmpty: false }, (cell, colNumber) => {
+          headers[colNumber] = String(cell.value || `Column${colNumber}`);
         });
         
-        // Get the range of the sheet
-        const range = XLSX.utils.decode_range(worksheet['!ref'] || 'A1');
+        // Process data rows (starting from row 2)
+        worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+          if (rowNumber === 1) return; // Skip header row
+          
+          const rowData: Record<string, string> = {};
+          row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+            const header = headers[colNumber] || `Column${colNumber}`;
+            // Convert cell value to string, handling different types
+            let value = '';
+            if (cell.value !== null && cell.value !== undefined) {
+              if (typeof cell.value === 'object' && 'result' in cell.value) {
+                // Handle formula cells
+                value = String(cell.value.result || '');
+              } else if (typeof cell.value === 'object' && 'text' in cell.value) {
+                // Handle rich text
+                value = String(cell.value.text || '');
+              } else {
+                value = String(cell.value);
+              }
+            }
+            rowData[header] = value;
+          });
+          
+          // Only add row if it has at least one non-empty value
+          if (Object.values(rowData).some(v => v !== '')) {
+            sheetData.push(rowData);
+          }
+        });
         
         sheets.push({
-          name: sheetName,
-          data: jsonData as Record<string, string>[],
-          rowCount: range.e.r - range.s.r + 1,
-          columnCount: range.e.c - range.s.c + 1,
+          name: worksheet.name,
+          data: sheetData,
+          rowCount: rowCount,
+          columnCount: columnCount,
         });
-      }
+      });
       
       return {
         fileName: 'buffer',
-        sheetCount: workbook.SheetNames.length,
+        sheetCount: sheets.length,
         sheets,
       };
     } catch (error) {
