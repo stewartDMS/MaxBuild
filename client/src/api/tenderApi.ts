@@ -141,8 +141,12 @@ export async function uploadTender(
     formData.append('requiresReview', 'true');
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const xhr = new XMLHttpRequest();
+
+    // Set a longer timeout for AI processing (5 minutes)
+    // AI extraction can take considerable time depending on document complexity
+    xhr.timeout = 5 * 60 * 1000; // 5 minutes
 
     // Track upload progress
     if (onProgress) {
@@ -161,8 +165,12 @@ export async function uploadTender(
           resolve({
             success: false,
             error: { 
-              message: 'Server returned an empty response',
+              message: 'Server returned an empty response. This may indicate a server timeout or configuration issue.',
               reason: 'EMPTY_RESPONSE',
+              details: {
+                statusCode: xhr.status,
+                suggestion: 'Please try again. If the issue persists, contact support.',
+              },
             },
           });
           return;
@@ -197,11 +205,39 @@ export async function uploadTender(
     });
 
     xhr.addEventListener('error', () => {
-      reject(new Error('Network error occurred'));
+      resolve({
+        success: false,
+        error: {
+          message: 'Network error occurred while uploading the file',
+          reason: 'NETWORK_ERROR',
+          details: {
+            suggestion: 'Please check your internet connection and try again.',
+          },
+        },
+      });
     });
 
     xhr.addEventListener('abort', () => {
-      reject(new Error('Upload was aborted'));
+      resolve({
+        success: false,
+        error: {
+          message: 'Upload was cancelled',
+          reason: 'UPLOAD_ABORTED',
+        },
+      });
+    });
+
+    xhr.addEventListener('timeout', () => {
+      resolve({
+        success: false,
+        error: {
+          message: 'Request timed out. The file may be too large or the server is taking too long to process.',
+          reason: 'REQUEST_TIMEOUT',
+          details: {
+            suggestion: 'Please try uploading a smaller file or try again later.',
+          },
+        },
+      });
     });
 
     xhr.open('POST', `${API_BASE_URL}/tenders/upload`);
