@@ -244,3 +244,39 @@ export class ResourceNotFoundError extends AppError {
     );
   }
 }
+
+/**
+ * Database operation error (500)
+ */
+export class DatabaseError extends AppError {
+  constructor(operation: string, errorDetails?: string) {
+    super(
+      `Database operation '${operation}' failed`,
+      500,
+      'DATABASE_ERROR',
+      {
+        operation,
+        ...(errorDetails && { errorDetails }),
+        suggestion: 'There was a problem saving your data. Please try again',
+      }
+    );
+  }
+}
+
+/**
+ * Missing required parameter error (400)
+ */
+export class MissingParameterError extends AppError {
+  constructor(parameterName: string, parameterType: string = 'parameter') {
+    super(
+      `Missing required ${parameterType}: ${parameterName}`,
+      400,
+      'MISSING_PARAMETER',
+      {
+        parameter: parameterName,
+        parameterType,
+        suggestion: `Please provide the required ${parameterType}: ${parameterName}`,
+      }
+    );
+  }
+}

@@ -1,4 +1,4 @@
-import express, { Application } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import routes from './routes';
@@ -20,9 +20,11 @@ app.use(express.urlencoded({ extended: true }));
 // Apply rate limiting to all API routes
 app.use('/api', apiRateLimiter);
 
-// Request logging
-app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+// Request logging with request ID for traceability
+app.use((req: Request, res: Response, next: NextFunction) => {
+  const requestId = `req-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  (req as any).requestId = requestId;
+  console.log(`${new Date().toISOString()} [${requestId}] - ${req.method} ${req.path}`);
   next();
 });
 
@@ -53,8 +55,33 @@ app.get('/', (req, res) => {
 // 404 handler
 app.use(notFoundHandler);
 
-// Error handler
+// Error handler - must be last middleware
 app.use(errorHandler);
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (reason: unknown, promise: Promise<unknown>) => {
+  console.error('❌ Unhandled Promise Rejection:', {
+    timestamp: new Date().toISOString(),
+    reason: reason instanceof Error ? reason.message : String(reason),
+    stack: reason instanceof Error ? reason.stack : undefined,
+  });
+});
+
+// Handle uncaught exceptions - log but don't crash for non-fatal errors
+process.on('uncaughtException', (error: Error & { code?: string }) => {
+  console.error('❌ Uncaught Exception:', {
+    timestamp: new Date().toISOString(),
+    error: error.message,
+    code: error.code,
+    stack: error.stack,
+  });
+  // Only exit for truly fatal system errors (check error code for reliability)
+  const fatalErrorCodes = ['EADDRINUSE', 'EACCES', 'ENOENT'];
+  if (error.code && fatalErrorCodes.includes(error.code)) {
+    console.error('💀 Fatal error - shutting down');
+    process.exit(1);
+  }
+});
 
 // Start server
 app.listen(PORT, () => {
