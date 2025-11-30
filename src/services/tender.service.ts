@@ -3,7 +3,7 @@ import { PDFLoader } from '../ai/loaders/pdf.loader';
 import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import { ExcelService } from './excel.service';
 import { CSVService } from './csv.service';
-import { UnsupportedFileTypeError, EmptyFileError, ResourceNotFoundError, DatabaseError, AppError } from '../lib/errors';
+import { UnsupportedFileTypeError, EmptyFileError, ResourceNotFoundError, DatabaseError, AppError, ParsingError } from '../lib/errors';
 import type { BOQExtraction, BOQItem } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -133,8 +133,11 @@ export class TenderService {
       if (error instanceof AppError) {
         throw error;
       }
-      // For unknown errors, wrap them appropriately
-      throw error;
+      // For unknown errors, wrap them in a ParsingError for consistency
+      throw new ParsingError(
+        isPDF ? 'PDF' : isExcel ? 'Excel' : 'CSV',
+        error instanceof Error ? error.message : 'Unknown error during file processing'
+      );
     }
 
     // Step 2: Create tender record in database
@@ -184,19 +187,26 @@ export class TenderService {
       });
       console.log('✅ BOQ items saved successfully:', { count: boqItems.length });
     } catch (error) {
+      const originalError = error instanceof Error ? error.message : 'Unknown error';
       console.error('❌ Database error saving BOQ items:', {
         tenderId: tender.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
+        error: originalError,
         stack: error instanceof Error ? error.stack : undefined,
       });
-      // Clean up the tender record if BOQ save fails
+      // Clean up the tender record if BOQ save fails to maintain data consistency
+      console.log('🗑️ Attempting to clean up orphaned tender record after BOQ save failure...');
       try {
         await prisma.tender.delete({ where: { id: tender.id } });
-        console.log('🗑️ Cleaned up tender record after BOQ save failure');
+        console.log('🗑️ Successfully cleaned up tender record after BOQ save failure');
       } catch (cleanupError) {
-        console.error('⚠️ Failed to clean up tender record:', cleanupError);
+        // Log cleanup error but still throw the original error
+        console.error('⚠️ Failed to clean up tender record (orphaned record may remain):', {
+          tenderId: tender.id,
+          cleanupError: cleanupError instanceof Error ? cleanupError.message : 'Unknown cleanup error',
+        });
       }
-      throw new DatabaseError('save_boq_items', error instanceof Error ? error.message : 'Unknown database error');
+      // Always throw the original error, wrapped in DatabaseError
+      throw new DatabaseError('save_boq_items', originalError);
     }
 
     // Step 4: Update tender status (for non-review mode)

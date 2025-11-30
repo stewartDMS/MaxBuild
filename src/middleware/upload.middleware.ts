@@ -11,6 +11,20 @@ if (!fs.existsSync(uploadsDir)) {
   console.log('📁 Created uploads directory');
 }
 
+/**
+ * Sanitize file extension to prevent path traversal and other attacks
+ * Only allows alphanumeric extensions up to 10 characters
+ */
+function sanitizeExtension(originalname: string): string {
+  const ext = path.extname(originalname).toLowerCase();
+  // Only allow safe extensions (alphanumeric, starting with a dot, max 10 chars)
+  if (/^\.[a-z0-9]{1,10}$/i.test(ext)) {
+    return ext;
+  }
+  // Default to empty extension if invalid
+  return '';
+}
+
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -22,7 +36,9 @@ const storage = multer.diskStorage({
   },
   filename: (req, file, cb) => {
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
-    const safeFilename = file.fieldname + '-' + uniqueSuffix + path.extname(file.originalname);
+    // Sanitize the extension to prevent path traversal attacks
+    const safeExtension = sanitizeExtension(file.originalname);
+    const safeFilename = file.fieldname + '-' + uniqueSuffix + safeExtension;
     console.log('📁 Saving uploaded file as:', safeFilename);
     cb(null, safeFilename);
   },
