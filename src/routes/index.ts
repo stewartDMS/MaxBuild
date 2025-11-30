@@ -15,7 +15,8 @@ const router = Router();
 router.get('/health', async (req, res) => {
   try {
     // Attempt a simple database query to verify connectivity
-    await prisma.$queryRaw`SELECT 1`;
+    // Using $executeRaw since we don't need the query result
+    await prisma.$executeRaw`SELECT 1 as health`;
     
     // Database is reachable - return success response
     res.status(200).json({
@@ -25,14 +26,16 @@ router.get('/health', async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    // Database is unreachable or threw an error - return error response
-    const errorMessage = error instanceof Error ? error.message : 'Unknown database error';
+    // Database is unreachable or threw an error - log full details server-side
+    const fullErrorMessage = error instanceof Error ? error.message : 'Unknown database error';
+    console.error('Health check database error:', fullErrorMessage);
     
+    // Return a generic error message to avoid exposing sensitive database details
     res.status(503).json({
       success: false,
       message: 'MAX Build API is running but database is unavailable',
       db: 'error',
-      error: errorMessage,
+      error: 'Database connection failed',
       timestamp: new Date().toISOString(),
     });
   }
