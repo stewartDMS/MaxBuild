@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { TenderService } from '../services/tender.service';
-import { NoFileUploadedError, ResourceNotFoundError } from '../lib/errors';
+import { NoFileUploadedError, ResourceNotFoundError, MissingParameterError } from '../lib/errors';
 import fs from 'fs/promises';
 
 /**
@@ -23,8 +23,12 @@ export class TenderController {
    * - requiresReview: If "true", saves to pending_review status for user confirmation
    */
   async uploadTender(req: Request, res: Response, next: NextFunction) {
+    const requestId = (req as any).requestId || 'unknown';
+    console.log(`[${requestId}] 📤 Upload tender request received`);
+    
     try {
       if (!req.file) {
+        console.warn(`[${requestId}] ⚠️ No file uploaded`);
         throw new NoFileUploadedError();
       }
 
@@ -33,12 +37,13 @@ export class TenderController {
       // Parse requiresReview as boolean (defaults to false for backward compatibility)
       const requiresReview = req.body.requiresReview === 'true' || req.body.requiresReview === true;
 
-      console.log('📄 Processing tender upload:', {
+      console.log(`[${requestId}] 📄 Processing tender upload:`, {
         fileName: originalname,
         fileSize: `${(size / 1024).toFixed(2)} KB`,
         mimeType: mimetype,
         hasContext: !!context,
         requiresReview,
+        filePath,
       });
 
       // Process the tender
@@ -53,10 +58,10 @@ export class TenderController {
 
       // Clean up the uploaded file after processing
       await fs.unlink(filePath).catch((err) => {
-        console.warn('⚠️  Failed to delete uploaded file:', err);
+        console.warn(`[${requestId}] ⚠️ Failed to delete uploaded file:`, err);
       });
 
-      console.log('✅ Tender processed successfully:', {
+      console.log(`[${requestId}] ✅ Tender processed successfully:`, {
         tenderId: result.tenderId,
         itemCount: result.itemCount,
         status: result.status,
@@ -67,10 +72,15 @@ export class TenderController {
         data: result,
       });
     } catch (error) {
+      console.error(`[${requestId}] ❌ Error in uploadTender:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      
       // Clean up file on error if it exists
       if (req.file?.path) {
         await fs.unlink(req.file.path).catch((err) => {
-          console.warn('⚠️  Failed to delete uploaded file after error:', err);
+          console.warn(`[${requestId}] ⚠️ Failed to delete uploaded file after error:`, err);
         });
       }
       next(error);

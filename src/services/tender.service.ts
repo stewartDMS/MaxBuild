@@ -3,7 +3,7 @@ import { PDFLoader } from '../ai/loaders/pdf.loader';
 import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import { ExcelService } from './excel.service';
 import { CSVService } from './csv.service';
-import { UnsupportedFileTypeError, EmptyFileError, ResourceNotFoundError } from '../lib/errors';
+import { UnsupportedFileTypeError, EmptyFileError, ResourceNotFoundError, DatabaseError, AppError } from '../lib/errors';
 import type { BOQExtraction, BOQItem } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -93,21 +93,19 @@ export class TenderService {
       ]);
     }
 
+    // Step 1: Parse the file and extract text
     try {
       if (isCSV) {
-        // Process CSV file
         console.log('📊 Processing CSV file...');
         const result = await this.csvService.processCSV(filePath, context);
         extractedText = result.extractedText;
         boqExtraction = result.boqExtraction;
       } else if (isExcel) {
-        // Process Excel file
         console.log('📊 Processing Excel file...');
         const result = await this.excelService.processExcel(filePath, context);
         extractedText = result.extractedText;
         boqExtraction = result.boqExtraction;
       } else {
-        // Process PDF file
         console.log('📄 Processing PDF file...');
         extractedText = await this.pdfLoader.load(filePath);
 
@@ -116,15 +114,34 @@ export class TenderService {
         }
 
         // Run BOQ generation chain
+        console.log('🤖 Running AI BOQ extraction...');
         boqExtraction = await this.boqChain.run(extractedText, context);
       }
 
-      // Determine the target status based on review requirement
-      const targetStatus = requiresReview ? 'pending_review' : 'completed';
+      console.log('✅ File parsing and AI extraction completed successfully', {
+        textLength: extractedText.length,
+        itemCount: boqExtraction.items?.length || 0,
+      });
+    } catch (error) {
+      console.error('❌ Error during file parsing or AI extraction:', {
+        fileName,
+        fileType: isPDF ? 'PDF' : isExcel ? 'Excel' : 'CSV',
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      // Re-throw AppErrors as-is, they have proper error details
+      if (error instanceof AppError) {
+        throw error;
+      }
+      // For unknown errors, wrap them appropriately
+      throw error;
+    }
 
-      // Create tender record in database
-      console.log('💾 Creating tender record...');
-      const tender = await prisma.tender.create({
+    // Step 2: Create tender record in database
+    let tender: { id: string };
+    try {
+      console.log('💾 Creating tender record in database...');
+      tender = await prisma.tender.create({
         data: {
           fileName,
           fileSize,
@@ -134,9 +151,23 @@ export class TenderService {
           status: requiresReview ? 'pending_review' : 'processing',
         },
       });
+      console.log('✅ Tender record created:', { tenderId: tender.id });
+    } catch (error) {
+      console.error('❌ Database error creating tender record:', {
+        fileName,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw new DatabaseError('create_tender', error instanceof Error ? error.message : 'Unknown database error');
+    }
 
-      // Save BOQ items to database (even for review mode, so they can be edited)
-      console.log('💾 Saving BOQ items...');
+    // Step 3: Save BOQ items to database
+    try {
+      console.log('💾 Saving BOQ items to database...', { 
+        tenderId: tender.id, 
+        itemCount: boqExtraction.items?.length || 0 
+      });
+      
       const boqItems = boqExtraction.items.map((item) => ({
         tenderId: tender.id,
         itemNumber: item.itemNumber,
@@ -151,45 +182,65 @@ export class TenderService {
       await prisma.bOQ.createMany({
         data: boqItems,
       });
+      console.log('✅ BOQ items saved successfully:', { count: boqItems.length });
+    } catch (error) {
+      console.error('❌ Database error saving BOQ items:', {
+        tenderId: tender.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      // Clean up the tender record if BOQ save fails
+      try {
+        await prisma.tender.delete({ where: { id: tender.id } });
+        console.log('🗑️ Cleaned up tender record after BOQ save failure');
+      } catch (cleanupError) {
+        console.error('⚠️ Failed to clean up tender record:', cleanupError);
+      }
+      throw new DatabaseError('save_boq_items', error instanceof Error ? error.message : 'Unknown database error');
+    }
 
-      // Update tender status (for non-review mode)
-      if (!requiresReview) {
+    // Step 4: Update tender status (for non-review mode)
+    const targetStatus = requiresReview ? 'pending_review' : 'completed';
+    if (!requiresReview) {
+      try {
         await prisma.tender.update({
           where: { id: tender.id },
           data: { status: 'completed' },
         });
-      }
-
-      console.log(`✅ Tender processing completed (${targetStatus}):`, {
-        tenderId: tender.id,
-        itemCount: boqItems.length,
-      });
-
-      if (requiresReview) {
-        return {
+        console.log('✅ Tender status updated to completed');
+      } catch (error) {
+        console.error('❌ Database error updating tender status:', {
           tenderId: tender.id,
-          fileName,
-          status: 'pending_review',
-          boqExtraction,
-          itemCount: boqItems.length,
-          extractedText,
-        } as TenderPreviewResult;
+          error: error instanceof Error ? error.message : 'Unknown error',
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        throw new DatabaseError('update_tender_status', error instanceof Error ? error.message : 'Unknown database error');
       }
+    }
 
+    console.log(`✅ Tender processing completed (${targetStatus}):`, {
+      tenderId: tender.id,
+      itemCount: boqExtraction.items?.length || 0,
+    });
+
+    if (requiresReview) {
       return {
         tenderId: tender.id,
         fileName,
-        status: 'completed',
+        status: 'pending_review',
         boqExtraction,
-        itemCount: boqItems.length,
-      };
-    } catch (error) {
-      console.error('❌ Error processing tender:', {
-        fileName,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      throw error;
+        itemCount: boqExtraction.items?.length || 0,
+        extractedText,
+      } as TenderPreviewResult;
     }
+
+    return {
+      tenderId: tender.id,
+      fileName,
+      status: 'completed',
+      boqExtraction,
+      itemCount: boqExtraction.items?.length || 0,
+    };
   }
 
   /**
