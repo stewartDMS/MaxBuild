@@ -51,9 +51,12 @@ export interface ProcessingStep {
 
 /**
  * Generate a unique mock ID for demonstration purposes
+ * Uses crypto.randomUUID() for better uniqueness guarantees
  */
 function generateMockId(): string {
-  return `mock-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+  // Use crypto.randomUUID() for robust unique ID generation
+  const uuid = crypto.randomUUID();
+  return `mock-${Date.now()}-${uuid.substring(0, 8)}`;
 }
 
 /**
@@ -154,10 +157,16 @@ export class MockTenderService {
     // If we have actual file content, show a preview
     if (fileBuffer && fileBuffer.length > 0) {
       console.log(`   - Actual file buffer size: ${fileBuffer.length} bytes`);
-      // For text-based files, try to show first few characters
+      // For text-based files, try to show first few characters (with encoding safety)
       if (mimeType === 'text/csv' || mimeType.includes('text')) {
-        const textPreview = fileBuffer.toString('utf8').substring(0, 200);
-        console.log(`   - Content preview: "${textPreview}..."`);
+        try {
+          // Safely decode as UTF-8, replacing invalid characters
+          const decoder = new TextDecoder('utf-8', { fatal: false });
+          const textPreview = decoder.decode(fileBuffer).substring(0, 200);
+          console.log(`   - Content preview: "${textPreview}..."`);
+        } catch {
+          console.log('   - Content preview: [Unable to decode as text]');
+        }
       }
     }
 

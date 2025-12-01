@@ -56,11 +56,19 @@ export class LangGraphService {
 
   /**
    * Get or create the LangGraph client (lazy initialization)
+   * Provides clear feedback when configuration is missing
    * @returns The LangGraph client
    * @throws Error if LANGGRAPH_API_KEY is not configured
    */
   private getClient(): Client {
     if (!this.client) {
+      // Check if API key exists before attempting to create client
+      if (!process.env.LANGGRAPH_API_KEY) {
+        console.error('❌ LangGraph API key is not configured. Please set LANGGRAPH_API_KEY environment variable.');
+        throw new Error(
+          'LangGraph service is not configured. Please set LANGGRAPH_API_KEY environment variable to use LangGraph features.'
+        );
+      }
       this.client = createClient();
     }
     return this.client;
