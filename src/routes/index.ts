@@ -1,9 +1,54 @@
-import { Router } from 'express';
+import { Router, Request, Response } from 'express';
 import tenderRoutes from './tender.routes';
 import langgraphRoutes from './langgraph.routes';
 import prisma from '../lib/prisma';
 
 const router = Router();
+
+/**
+ * Get request ID for logging traceability
+ */
+function getRequestId(req: Request): string {
+  return (req as any).requestId || 'unknown';
+}
+
+/**
+ * POST /api/uploadtest
+ * Simple diagnostic endpoint to verify backend upload route reachability.
+ * Logs when hit and returns confirmation - no payload required.
+ * 
+ * Use this to verify the backend is reachable before testing actual file uploads.
+ */
+router.post('/uploadtest', (req: Request, res: Response) => {
+  const requestId = getRequestId(req);
+  const timestamp = new Date().toISOString();
+  
+  // Log detailed request info for debugging
+  console.log(`[${requestId}] 🧪 UPLOADTEST HIT`, {
+    timestamp,
+    method: req.method,
+    path: req.path,
+    contentType: req.headers['content-type'] || 'none',
+    contentLength: req.headers['content-length'] || '0',
+    userAgent: req.headers['user-agent'] || 'unknown',
+    origin: req.headers['origin'] || 'none',
+    ip: req.ip || req.headers['x-forwarded-for'] || 'unknown',
+  });
+  
+  console.log(`[${requestId}] ✅ UPLOADTEST SUCCESS - Backend upload routes are reachable`);
+  
+  res.status(200).json({
+    success: true,
+    message: 'Upload test endpoint reached successfully. Backend upload routes are reachable.',
+    timestamp,
+    requestId,
+    debug: {
+      contentType: req.headers['content-type'] || 'none',
+      contentLength: req.headers['content-length'] || '0',
+      hint: 'Use POST /api/tenders/upload with multipart/form-data and field name "tender" to upload files',
+    },
+  });
+});
 
 /**
  * Health check endpoint that tests both API liveliness and PostgreSQL DB connectivity.

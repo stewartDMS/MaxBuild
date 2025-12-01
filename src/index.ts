@@ -50,6 +50,7 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       health: '/api/health',
+      uploadtest: 'POST /api/uploadtest (diagnostic - no file required)',
       tenders: {
         upload: 'POST /api/tenders/upload',
         list: 'GET /api/tenders',

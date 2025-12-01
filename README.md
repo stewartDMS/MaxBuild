@@ -688,6 +688,85 @@ The document ingest feature allows you to upload PDF, Excel, or CSV tender docum
 9. A success notification will appear with the result
 10. The extracted data is stored in the database and can be viewed via the API
 
+#### Testing Upload Route Reachability (Diagnostics)
+
+Before testing actual file uploads, you can verify that the backend upload routes are reachable using the diagnostic endpoint. This is helpful for debugging connectivity issues between frontend and backend.
+
+**Step 1: Test Basic Backend Reachability**
+
+```bash
+# Test that the upload test diagnostic endpoint is reachable (no file required)
+curl -X POST http://localhost:3000/api/uploadtest
+
+# Expected response:
+# {
+#   "success": true,
+#   "message": "Upload test endpoint reached successfully. Backend upload routes are reachable.",
+#   "timestamp": "2024-01-01T00:00:00.000Z",
+#   "requestId": "req-...",
+#   "debug": {
+#     "contentType": "none",
+#     "contentLength": "0",
+#     "hint": "Use POST /api/tenders/upload with multipart/form-data and field name \"tender\" to upload files"
+#   }
+# }
+```
+
+**Step 2: Test Upload Route Without File (to verify error handling)**
+
+```bash
+# Test the actual upload route without a file to verify error response
+curl -X POST http://localhost:3000/api/tenders/upload
+
+# Expected response (400 error with helpful guidance):
+# {
+#   "success": false,
+#   "error": {
+#     "message": "No file was uploaded. Please include a file in your request.",
+#     "reason": "NO_FILE_UPLOADED",
+#     "details": {
+#       "receivedContentType": "none",
+#       "expectedContentType": "multipart/form-data",
+#       "expectedFieldName": "tender",
+#       "suggestion": "Ensure you are sending a multipart/form-data request...",
+#       "examples": {
+#         "curl": "curl -X POST -F \"tender=@yourfile.pdf\" http://localhost:3000/api/tenders/upload",
+#         "postman": "Use form-data body type with key \"tender\" (type: File)"
+#       }
+#     }
+#   }
+# }
+```
+
+**Using Postman for Diagnostics**
+
+1. **Test Upload Reachability**:
+   - Create a new POST request to `http://localhost:3000/api/uploadtest`
+   - No body required
+   - Send the request and verify you get a success response
+
+2. **Test Upload Route Error Handling**:
+   - Create a new POST request to `http://localhost:3000/api/tenders/upload`
+   - Don't add any body
+   - Send the request and verify you get a helpful 400 error response
+
+3. **Test Actual File Upload**:
+   - Create a new POST request to `http://localhost:3000/api/tenders/upload`
+   - Go to "Body" tab → Select "form-data"
+   - Add a key named `tender`, change type from "Text" to "File"
+   - Select your PDF/Excel/CSV file
+   - Send the request
+
+**Troubleshooting Common Issues**
+
+| Issue | Solution |
+|-------|----------|
+| Cannot reach `/api/uploadtest` | Backend server may not be running. Start with `npm run dev` |
+| `Content-Type` error | Ensure you're using multipart/form-data, not JSON |
+| `Unexpected field name` error | The file field must be named `tender` |
+| `No file uploaded` | Check that the file exists and you're using `-F` not `-d` with curl |
+| Connection refused | Check if server is running on the correct port (default: 3000) |
+
 #### Testing via API (curl)
 
 ```bash
