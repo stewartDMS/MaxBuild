@@ -18,9 +18,44 @@ const tenderController = new TenderController();
  */
 router.post(
   '/upload',
+  // Log entry to upload route
+  (req: Request, res: Response, next: NextFunction) => {
+    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    console.log(`[${requestId}] 🚪 ENTRY: Upload route handler started`, {
+      timestamp: new Date().toISOString(),
+      method: req.method,
+      path: req.path,
+      contentType: req.headers['content-type'],
+      contentLength: req.headers['content-length'],
+    });
+    next();
+  },
   uploadRateLimiter,
+  // Log after rate limiting passes
+  (req: Request, res: Response, next: NextFunction) => {
+    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    console.log(`[${requestId}] ✅ Rate limit check passed`);
+    next();
+  },
   upload.single('tender'),
+  // Log after multer file processing
+  (req: Request, res: Response, next: NextFunction) => {
+    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    console.log(`[${requestId}] 📁 Multer file processing completed`, {
+      fileReceived: !!req.file,
+      fileName: req.file?.originalname || 'N/A',
+      fileSize: req.file?.size || 0,
+      mimeType: req.file?.mimetype || 'N/A',
+    });
+    next();
+  },
   handleMulterError,
+  // Log after validation/multer error handling passes
+  (req: Request, res: Response, next: NextFunction) => {
+    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    console.log(`[${requestId}] ✅ File validation passed, proceeding to controller`);
+    next();
+  },
   asyncHandler((req: Request, res: Response, next: NextFunction) => 
     tenderController.uploadTender(req, res, next)
   )

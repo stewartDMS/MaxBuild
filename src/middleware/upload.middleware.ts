@@ -28,18 +28,31 @@ function sanitizeExtension(originalname: string): string {
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
+    const requestId = (req as any).requestId || 'unknown';
+    console.log(`[${requestId}] 📂 Storage destination callback triggered`, {
+      timestamp: new Date().toISOString(),
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+    });
     // Verify uploads directory exists before saving
     if (!fs.existsSync(uploadsDir)) {
+      console.log(`[${requestId}] 📁 Creating uploads directory...`);
       fs.mkdirSync(uploadsDir, { recursive: true });
     }
+    console.log(`[${requestId}] ✅ Destination set to: ${uploadsDir}`);
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
+    const requestId = (req as any).requestId || 'unknown';
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     // Sanitize the extension to prevent path traversal attacks
     const safeExtension = sanitizeExtension(file.originalname);
     const safeFilename = file.fieldname + '-' + uniqueSuffix + safeExtension;
-    console.log('📁 Saving uploaded file as:', safeFilename);
+    console.log(`[${requestId}] 📁 Saving uploaded file as:`, {
+      safeFilename,
+      originalname: file.originalname,
+      timestamp: new Date().toISOString(),
+    });
     cb(null, safeFilename);
   },
 });
@@ -54,15 +67,19 @@ const SUPPORTED_FILE_TYPES = [
 
 // File filter to accept PDFs, Excel files, and CSV files
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  console.log('📎 File filter checking:', { 
+  const requestId = (req as any).requestId || 'unknown';
+  console.log(`[${requestId}] 📎 File filter checking:`, { 
+    timestamp: new Date().toISOString(),
     originalname: file.originalname, 
     mimetype: file.mimetype,
-    fieldname: file.fieldname
+    fieldname: file.fieldname,
+    size: file.size,
   });
   
   const allowedMimeTypes = SUPPORTED_FILE_TYPES.map(ft => ft.mimeType);
   
   if (allowedMimeTypes.includes(file.mimetype)) {
+    console.log(`[${requestId}] ✅ File type accepted: ${file.mimetype}`);
     cb(null, true);
   } else {
     // Create detailed error with supported types
@@ -71,7 +88,11 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
       file.mimetype || 'unknown',
       supportedTypes
     );
-    console.warn('⚠️ File type rejected:', { mimetype: file.mimetype, originalname: file.originalname });
+    console.warn(`[${requestId}] ⚠️ File type rejected:`, { 
+      mimetype: file.mimetype, 
+      originalname: file.originalname,
+      allowedTypes: allowedMimeTypes,
+    });
     cb(error as any);
   }
 };
@@ -96,23 +117,29 @@ const upload = multer({
  * Transforms multer errors into AppError format for consistent API responses
  */
 export const handleMulterError = (err: any, req: Request, res: Response, next: NextFunction) => {
+  const requestId = (req as any).requestId || 'unknown';
+  
   // If no error, pass through
   if (!err) {
+    console.log(`[${requestId}] ✅ No multer error, passing through handleMulterError`);
     return next();
   }
 
-  console.error('📤 Multer error occurred:', {
+  console.error(`[${requestId}] 📤 Multer error occurred:`, {
     timestamp: new Date().toISOString(),
     errorType: err.constructor?.name,
     code: err.code,
     message: err.message,
     file: req.file?.originalname,
+    stack: err.stack,
   });
 
   if (err instanceof multer.MulterError) {
+    console.log(`[${requestId}] 🔍 Handling MulterError with code: ${err.code}`);
     if (err.code === 'LIMIT_FILE_SIZE') {
       const maxSize = getMaxFileSize();
       const error = new FileSizeLimitError(req.file?.size || 0, maxSize);
+      console.log(`[${requestId}] ❌ File size limit exceeded`);
       return next(error);
     }
     if (err.code === 'LIMIT_UNEXPECTED_FILE') {
@@ -126,6 +153,7 @@ export const handleMulterError = (err: any, req: Request, res: Response, next: N
           suggestion: "Use 'tender' as the field name for the file upload",
         }
       );
+      console.log(`[${requestId}] ❌ Unexpected field name: ${err.field}`);
       return next(error);
     }
     // Other multer errors - wrap in AppError for consistent response
@@ -138,15 +166,18 @@ export const handleMulterError = (err: any, req: Request, res: Response, next: N
         field: err.field,
       }
     );
+    console.log(`[${requestId}] ❌ Other multer error: ${err.code}`);
     return next(error);
   }
   
   // If it's already an AppError, pass it through
   if (err instanceof AppError) {
+    console.log(`[${requestId}] 🔄 Passing through existing AppError: ${err.reason}`);
     return next(err);
   }
   
   // For any other errors, pass to next error handler
+  console.log(`[${requestId}] 🔄 Passing unknown error to next handler:`, err.message);
   next(err);
 };
 

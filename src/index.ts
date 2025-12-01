@@ -1,6 +1,7 @@
 import express, { Application, Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import morgan from 'morgan';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { apiRateLimiter } from './middleware/rate-limit.middleware';
@@ -16,6 +17,16 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Morgan HTTP request logging - logs all incoming requests with timing
+// Use 'combined' format for detailed logs including user-agent, referrer
+app.use(morgan('combined', {
+  stream: {
+    write: (message: string) => {
+      console.log(`[HTTP] ${message.trim()}`);
+    },
+  },
+}));
 
 // Apply rate limiting to all API routes
 app.use('/api', apiRateLimiter);
