@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { TenderController } from '../controllers/tender.controller';
-import upload, { handleMulterError } from '../middleware/upload.middleware';
+import upload, { handleMulterError, mockUpload } from '../middleware/upload.middleware';
 import { uploadRateLimiter } from '../middleware/rate-limit.middleware';
 import { asyncHandler } from '../middleware/error.middleware';
 
@@ -136,6 +136,65 @@ router.post(
   },
   asyncHandler((req: Request, res: Response, next: NextFunction) => 
     tenderController.uploadTender(req, res, next)
+  )
+);
+
+/**
+ * POST /api/tenders/upload-mock
+ * Mock/Demo endpoint for demonstrating the tender processing flow
+ * 
+ * This endpoint is for DEMONSTRATION AND TEAM ALIGNMENT ONLY.
+ * It simulates the complete end-to-end tender processing flow without requiring:
+ * - PostgreSQL database connection
+ * - OpenAI API key
+ * - LangGraph API key
+ * - Any external services
+ * 
+ * Body parameters (all optional):
+ * - tender: File to upload (multipart/form-data) - uses mock data if not provided
+ * - context: Optional extraction context/instructions to guide mock analysis
+ * 
+ * The flow demonstrates with detailed console logs:
+ * 1. FILE_UPLOAD - File reception and validation
+ * 2. FILE_PARSING - Document content extraction
+ * 3. AI_ANALYSIS - Mock BOQ extraction simulation
+ * 4. DOCUMENT_GENERATION - Result document creation
+ * 5. RESULT_SENDING - Response preparation
+ */
+router.post(
+  '/upload-mock',
+  // Log when mock route is hit
+  (req: Request, res: Response, next: NextFunction) => {
+    const requestId = getRequestId(req);
+    const timestamp = new Date().toISOString();
+    
+    console.log(`[${requestId}] ========================================`);
+    console.log(`[${requestId}] 🎭 MOCK UPLOAD ROUTE HIT - POST /api/tenders/upload-mock`);
+    console.log(`[${requestId}] ========================================`);
+    console.log(`[${requestId}] ℹ️ This is a DEMO endpoint for team alignment`);
+    console.log(`[${requestId}] 📋 Request received at: ${timestamp}`);
+    
+    next();
+  },
+  // Optional file upload - mock works without a file too (accepts any file type)
+  mockUpload.single('tender'),
+  handleMulterError,
+  // Don't require file - mock endpoint works without one
+  (req: Request, res: Response, next: NextFunction) => {
+    const requestId = getRequestId(req);
+    if (req.file) {
+      console.log(`[${requestId}] 📁 File provided for mock processing:`, {
+        name: req.file.originalname,
+        size: `${(req.file.size / 1024).toFixed(2)} KB`,
+        type: req.file.mimetype,
+      });
+    } else {
+      console.log(`[${requestId}] 📄 No file provided - will use mock data`);
+    }
+    next();
+  },
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.uploadMockTender(req, res, next)
   )
 );
 

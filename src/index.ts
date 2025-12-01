@@ -53,6 +53,7 @@ app.get('/', (req, res) => {
       uploadtest: 'POST /api/uploadtest (diagnostic - no file required)',
       tenders: {
         upload: 'POST /api/tenders/upload',
+        uploadMock: 'POST /api/tenders/upload-mock (demo endpoint - no DB/AI required)',
         list: 'GET /api/tenders',
         get: 'GET /api/tenders/:id',
         delete: 'DELETE /api/tenders/:id',

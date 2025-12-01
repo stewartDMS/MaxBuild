@@ -304,6 +304,112 @@ The production build will be in the `client/dist` directory.
     - `413`: File too large
     - `500`: Server or AI extraction error
 
+#### Mock Upload Tender (Demo/Testing)
+- **POST** `/api/tenders/upload-mock`
+  - **Purpose**: Demonstration endpoint for team alignment - simulates the complete tender processing flow
+  - **Requirements**: None - works without database, OpenAI API, or any external services
+  - **Body**: `multipart/form-data` (optional)
+    - `tender` (optional): Any file to simulate processing. If not provided, uses mock data.
+    - `context` (optional): Text instructions to guide mock analysis (e.g., "Focus on electrical items")
+  - **Processing Phases** (logged to console):
+    1. `FILE_UPLOAD` - File reception and validation
+    2. `FILE_PARSING` - Document content extraction simulation
+    3. `AI_ANALYSIS` - Mock BOQ extraction (no real AI)
+    4. `DOCUMENT_GENERATION` - Result document creation
+    5. `RESULT_SENDING` - Response preparation
+  - **Success Response**:
+    ```json
+    {
+      "success": true,
+      "message": "Mock tender processed successfully. This is a demonstration response.",
+      "isDemo": true,
+      "data": {
+        "tenderId": "mock-1701408975123-abc123def",
+        "fileName": "demo-tender-document.pdf",
+        "status": "mock_completed",
+        "boqExtraction": {
+          "projectName": "Demo Construction Project",
+          "projectLocation": "Demo Location - City Center",
+          "items": [
+            {
+              "itemNumber": "1.0",
+              "description": "Site Preparation and Clearing",
+              "quantity": 1,
+              "unit": "lot",
+              "unitRate": 15000,
+              "amount": 15000,
+              "category": "Preliminary"
+            },
+            {
+              "itemNumber": "2.1",
+              "description": "Excavation of foundation trenches",
+              "quantity": 450,
+              "unit": "m³",
+              "unitRate": 28,
+              "amount": 12600,
+              "category": "Foundation"
+            }
+          ],
+          "totalEstimatedCost": 223850,
+          "currency": "USD",
+          "extractionDate": "2024-01-01T00:00:00.000Z",
+          "notes": "Standard extraction without custom context"
+        },
+        "itemCount": 9,
+        "processingSteps": [
+          {
+            "phase": "FILE_UPLOAD",
+            "status": "completed",
+            "timestamp": "2024-01-01T00:00:00.000Z",
+            "details": "File \"demo-tender-document.pdf\" (500.00 KB) received successfully",
+            "durationMs": 0
+          },
+          {
+            "phase": "FILE_PARSING",
+            "status": "completed",
+            "timestamp": "2024-01-01T00:00:00.100Z",
+            "details": "Extracted 1234 characters from PDF",
+            "durationMs": 100
+          },
+          {
+            "phase": "AI_ANALYSIS",
+            "status": "completed",
+            "timestamp": "2024-01-01T00:00:00.250Z",
+            "details": "Extracted 9 BOQ items with total cost $223,850",
+            "durationMs": 150
+          },
+          {
+            "phase": "DOCUMENT_GENERATION",
+            "status": "completed",
+            "timestamp": "2024-01-01T00:00:00.450Z",
+            "details": "Generated BOQ document for project \"Demo Construction Project\"",
+            "durationMs": 200
+          },
+          {
+            "phase": "RESULT_SENDING",
+            "status": "completed",
+            "timestamp": "2024-01-01T00:00:00.500Z",
+            "details": "Response prepared and ready to send",
+            "durationMs": 500
+          }
+        ]
+      }
+    }
+    ```
+  - **Example Usage**:
+    ```bash
+    # Without a file (uses mock data)
+    curl -X POST http://localhost:3000/api/tenders/upload-mock
+
+    # With a file
+    curl -X POST http://localhost:3000/api/tenders/upload-mock \
+      -F "tender=@path/to/tender.pdf"
+
+    # With context to guide mock extraction
+    curl -X POST http://localhost:3000/api/tenders/upload-mock \
+      -F "context=Focus on electrical and plumbing items"
+    ```
+
 #### Approve Tender (Review Workflow)
 - **POST** `/api/tenders/:id/approve`
   - Approve and finalize a tender extraction after user review
