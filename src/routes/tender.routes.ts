@@ -8,6 +8,14 @@ const router = Router();
 const tenderController = new TenderController();
 
 /**
+ * Get or generate a request ID for tracing
+ * Uses the existing request ID set by middleware, or 'unknown' as fallback
+ */
+function getRequestId(req: Request): string {
+  return (req as any).requestId || 'unknown';
+}
+
+/**
  * POST /api/tenders/upload
  * Upload a tender PDF and extract BOQ
  * 
@@ -20,7 +28,7 @@ router.post(
   '/upload',
   // Log entry to upload route
   (req: Request, res: Response, next: NextFunction) => {
-    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    const requestId = getRequestId(req);
     console.log(`[${requestId}] 🚪 ENTRY: Upload route handler started`, {
       timestamp: new Date().toISOString(),
       method: req.method,
@@ -33,17 +41,16 @@ router.post(
   uploadRateLimiter,
   // Log after rate limiting passes
   (req: Request, res: Response, next: NextFunction) => {
-    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    const requestId = getRequestId(req);
     console.log(`[${requestId}] ✅ Rate limit check passed`);
     next();
   },
   upload.single('tender'),
   // Log after multer file processing
   (req: Request, res: Response, next: NextFunction) => {
-    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    const requestId = getRequestId(req);
     console.log(`[${requestId}] 📁 Multer file processing completed`, {
       fileReceived: !!req.file,
-      fileName: req.file?.originalname || 'N/A',
       fileSize: req.file?.size || 0,
       mimeType: req.file?.mimetype || 'N/A',
     });
@@ -52,7 +59,7 @@ router.post(
   handleMulterError,
   // Log after validation/multer error handling passes
   (req: Request, res: Response, next: NextFunction) => {
-    const requestId = (req as any).requestId || `req-${Date.now()}`;
+    const requestId = getRequestId(req);
     console.log(`[${requestId}] ✅ File validation passed, proceeding to controller`);
     next();
   },

@@ -4,6 +4,27 @@ import fs from 'fs';
 import { Request, Response, NextFunction } from 'express';
 import { UnsupportedFileTypeError, FileSizeLimitError, AppError } from '../lib/errors';
 
+// Check if running in development mode
+const isDevelopment = process.env.NODE_ENV !== 'production';
+
+/**
+ * Get request ID for logging traceability
+ */
+function getRequestId(req: Request): string {
+  return (req as any).requestId || 'unknown';
+}
+
+/**
+ * Get sanitized file info for logging (excludes potentially sensitive original filename)
+ */
+function getSafeFileInfo(file: Express.Multer.File): Record<string, unknown> {
+  return {
+    mimetype: file.mimetype,
+    fieldname: file.fieldname,
+    extension: path.extname(file.originalname).toLowerCase(),
+  };
+}
+
 // Ensure uploads directory exists
 const uploadsDir = 'uploads/';
 if (!fs.existsSync(uploadsDir)) {
@@ -28,11 +49,10 @@ function sanitizeExtension(originalname: string): string {
 // Configure storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const requestId = (req as any).requestId || 'unknown';
+    const requestId = getRequestId(req);
     console.log(`[${requestId}] 📂 Storage destination callback triggered`, {
       timestamp: new Date().toISOString(),
-      originalname: file.originalname,
-      mimetype: file.mimetype,
+      ...getSafeFileInfo(file),
     });
     // Verify uploads directory exists before saving
     if (!fs.existsSync(uploadsDir)) {
@@ -43,14 +63,14 @@ const storage = multer.diskStorage({
     cb(null, uploadsDir);
   },
   filename: (req, file, cb) => {
-    const requestId = (req as any).requestId || 'unknown';
+    const requestId = getRequestId(req);
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
     // Sanitize the extension to prevent path traversal attacks
     const safeExtension = sanitizeExtension(file.originalname);
     const safeFilename = file.fieldname + '-' + uniqueSuffix + safeExtension;
     console.log(`[${requestId}] 📁 Saving uploaded file as:`, {
       safeFilename,
-      originalname: file.originalname,
+      extension: safeExtension,
       timestamp: new Date().toISOString(),
     });
     cb(null, safeFilename);
@@ -67,12 +87,10 @@ const SUPPORTED_FILE_TYPES = [
 
 // File filter to accept PDFs, Excel files, and CSV files
 const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilterCallback) => {
-  const requestId = (req as any).requestId || 'unknown';
+  const requestId = getRequestId(req);
   console.log(`[${requestId}] 📎 File filter checking:`, { 
     timestamp: new Date().toISOString(),
-    originalname: file.originalname, 
-    mimetype: file.mimetype,
-    fieldname: file.fieldname,
+    ...getSafeFileInfo(file),
     size: file.size,
   });
   
@@ -90,7 +108,7 @@ const fileFilter = (req: Request, file: Express.Multer.File, cb: multer.FileFilt
     );
     console.warn(`[${requestId}] ⚠️ File type rejected:`, { 
       mimetype: file.mimetype, 
-      originalname: file.originalname,
+      extension: path.extname(file.originalname).toLowerCase(),
       allowedTypes: allowedMimeTypes,
     });
     cb(error as any);
@@ -117,7 +135,7 @@ const upload = multer({
  * Transforms multer errors into AppError format for consistent API responses
  */
 export const handleMulterError = (err: any, req: Request, res: Response, next: NextFunction) => {
-  const requestId = (req as any).requestId || 'unknown';
+  const requestId = getRequestId(req);
   
   // If no error, pass through
   if (!err) {
@@ -125,14 +143,20 @@ export const handleMulterError = (err: any, req: Request, res: Response, next: N
     return next();
   }
 
-  console.error(`[${requestId}] 📤 Multer error occurred:`, {
+  // Build error log object - include stack trace only in development
+  const errorLogData: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     errorType: err.constructor?.name,
     code: err.code,
     message: err.message,
-    file: req.file?.originalname,
-    stack: err.stack,
-  });
+  };
+  
+  // Only include stack trace in development for security
+  if (isDevelopment && err.stack) {
+    errorLogData.stack = err.stack;
+  }
+  
+  console.error(`[${requestId}] 📤 Multer error occurred:`, errorLogData);
 
   if (err instanceof multer.MulterError) {
     console.log(`[${requestId}] 🔍 Handling MulterError with code: ${err.code}`);
