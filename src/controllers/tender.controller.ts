@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { TenderService } from '../services/tender.service';
+import { MockTenderService } from '../services/mock-tender.service';
 import { NoFileUploadedError, ResourceNotFoundError, MissingParameterError } from '../lib/errors';
 import fs from 'fs/promises';
 
@@ -8,9 +9,11 @@ import fs from 'fs/promises';
  */
 export class TenderController {
   private tenderService: TenderService;
+  private mockTenderService: MockTenderService;
 
   constructor(tenderService?: TenderService) {
     this.tenderService = tenderService || new TenderService();
+    this.mockTenderService = new MockTenderService();
   }
 
   /**
@@ -257,6 +260,113 @@ export class TenderController {
         message: 'Tender deleted successfully',
       });
     } catch (error) {
+      next(error);
+    }
+  }
+
+  /**
+   * Mock Upload - Demonstrates end-to-end tender processing flow
+   * POST /api/tenders/upload-mock
+   * 
+   * This endpoint is for DEMONSTRATION PURPOSES ONLY.
+   * It simulates the complete tender processing flow without requiring:
+   * - Database connection
+   * - OpenAI API key
+   * - LangGraph API key
+   * 
+   * The flow demonstrates:
+   * 1. File Upload - Receiving uploaded files
+   * 2. File Parsing/Reading - Extracting content from documents
+   * 3. Mock Analysis - Simulating AI-powered BOQ extraction
+   * 4. Document Generation - Creating result documents
+   * 5. Result Sending - Returning processed data
+   * 
+   * Body parameters:
+   * - tender: File to upload (optional - will use mock data if not provided)
+   * - context: Optional extraction context/instructions
+   */
+  async uploadMockTender(req: Request, res: Response, next: NextFunction) {
+    const requestId = (req as any).requestId || 'unknown';
+    
+    console.log('\n');
+    console.log('╔════════════════════════════════════════════════════════════╗');
+    console.log('║           MOCK TENDER UPLOAD - DEMO FLOW                   ║');
+    console.log('║   This is a demonstration endpoint for team alignment      ║');
+    console.log('╚════════════════════════════════════════════════════════════╝');
+    console.log(`[${requestId}] 🎭 Mock upload tender request received`);
+    
+    try {
+      // Get file info if uploaded, otherwise use mock defaults
+      let fileName = 'demo-tender-document.pdf';
+      let fileSize = 1024 * 500; // 500KB mock size
+      let mimeType = 'application/pdf';
+      let fileBuffer: Buffer | null = null;
+
+      if (req.file) {
+        // Real file was uploaded
+        fileName = req.file.originalname;
+        fileSize = req.file.size;
+        mimeType = req.file.mimetype;
+        
+        // Read file buffer for potential content preview
+        try {
+          fileBuffer = await fs.readFile(req.file.path);
+        } catch {
+          console.log(`[${requestId}] ⚠️ Could not read file buffer (non-critical for mock)`);
+        }
+
+        console.log(`[${requestId}] 📄 Real file detected:`, {
+          fileName,
+          fileSize: `${(fileSize / 1024).toFixed(2)} KB`,
+          mimeType,
+        });
+      } else {
+        console.log(`[${requestId}] 📄 No file uploaded - using mock file data`);
+      }
+
+      const context = req.body?.context;
+      if (context) {
+        console.log(`[${requestId}] 📝 Extraction context provided: "${context}"`);
+      }
+
+      // Process using mock service
+      const result = await this.mockTenderService.processMockTender(
+        fileBuffer,
+        fileName,
+        fileSize,
+        mimeType,
+        context
+      );
+
+      // Clean up uploaded file if it exists
+      if (req.file?.path) {
+        await fs.unlink(req.file.path).catch((err) => {
+          console.warn(`[${requestId}] ⚠️ Failed to delete uploaded file:`, err);
+        });
+      }
+
+      console.log(`[${requestId}] ✅ Mock tender processing completed successfully`);
+      console.log('╔════════════════════════════════════════════════════════════╗');
+      console.log('║              DEMO FLOW COMPLETED SUCCESSFULLY              ║');
+      console.log('╚════════════════════════════════════════════════════════════╝\n');
+
+      res.status(200).json({
+        success: true,
+        message: 'Mock tender processed successfully. This is a demonstration response.',
+        isDemo: true,
+        data: result,
+      });
+    } catch (error) {
+      console.error(`[${requestId}] ❌ Error in mock upload:`, {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+
+      // Clean up file on error if it exists
+      if (req.file?.path) {
+        await fs.unlink(req.file.path).catch(() => {});
+      }
+      
       next(error);
     }
   }

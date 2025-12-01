@@ -49,12 +49,21 @@ export interface AssistantResponse {
 
 /**
  * Service for interacting with LangGraph API
+ * Uses lazy initialization to allow server startup without API key configured
  */
 export class LangGraphService {
-  private client: Client;
+  private client: Client | null = null;
 
-  constructor() {
-    this.client = createClient();
+  /**
+   * Get or create the LangGraph client (lazy initialization)
+   * @returns The LangGraph client
+   * @throws Error if LANGGRAPH_API_KEY is not configured
+   */
+  private getClient(): Client {
+    if (!this.client) {
+      this.client = createClient();
+    }
+    return this.client;
   }
 
   /**
@@ -63,7 +72,7 @@ export class LangGraphService {
    * @returns The assistant data
    */
   async getAssistant(assistantId: string): Promise<AssistantResponse> {
-    const assistant = await this.client.assistants.get(assistantId);
+    const assistant = await this.getClient().assistants.get(assistantId);
     return assistant as AssistantResponse;
   }
 }

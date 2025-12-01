@@ -205,4 +205,16 @@ export const handleMulterError = (err: any, req: Request, res: Response, next: N
   next(err);
 };
 
+/**
+ * Mock upload configuration - accepts any file type for demo purposes
+ * This is used by the mock endpoint which doesn't require strict file validation
+ */
+export const mockUpload = multer({
+  storage: storage,
+  // No file filter - accept any file type for mock/demo purposes
+  limits: {
+    fileSize: getMaxFileSize(),
+  },
+});
+
 export default upload;
