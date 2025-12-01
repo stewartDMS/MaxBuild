@@ -101,49 +101,38 @@ router.post(
     next();
   },
   handleMulterError,
-  // Log after validation/multer error handling passes
+  // Handle file validation result and respond with helpful error if no file
   (req: Request, res: Response, next: NextFunction) => {
     const requestId = getRequestId(req);
     
     if (req.file) {
       console.log(`[${requestId}] ✅ File validation passed, proceeding to controller`);
-    } else {
-      console.log(`[${requestId}] ⚠️ Proceeding to controller without file (will be handled there)`);
+      return next();
     }
     
-    next();
-  },
-  // Handle case where no file was uploaded before reaching controller
-  (req: Request, res: Response, next: NextFunction) => {
-    const requestId = getRequestId(req);
+    // No file was uploaded - return helpful error response
+    const timestamp = new Date().toISOString();
+    console.error(`[${requestId}] ❌ UPLOAD FAILED: No file provided`);
     
-    if (!req.file) {
-      const timestamp = new Date().toISOString();
-      console.error(`[${requestId}] ❌ UPLOAD FAILED: No file provided`);
-      
-      // Return helpful error response with diagnostic info
-      return res.status(400).json({
-        success: false,
-        error: {
-          message: 'No file was uploaded. Please include a file in your request.',
-          reason: 'NO_FILE_UPLOADED',
-          details: {
-            receivedContentType: req.headers['content-type'] || 'none',
-            expectedContentType: 'multipart/form-data',
-            expectedFieldName: 'tender',
-            suggestion: 'Ensure you are sending a multipart/form-data request with the file in a field named "tender"',
-            examples: {
-              curl: 'curl -X POST -F "tender=@yourfile.pdf" http://localhost:3000/api/tenders/upload',
-              postman: 'Use form-data body type with key "tender" (type: File)',
-            },
+    return res.status(400).json({
+      success: false,
+      error: {
+        message: 'No file was uploaded. Please include a file in your request.',
+        reason: 'NO_FILE_UPLOADED',
+        details: {
+          receivedContentType: req.headers['content-type'] || 'none',
+          expectedContentType: 'multipart/form-data',
+          expectedFieldName: 'tender',
+          suggestion: 'Ensure you are sending a multipart/form-data request with the file in a field named "tender"',
+          examples: {
+            curl: 'curl -X POST -F "tender=@yourfile.pdf" http://localhost:3000/api/tenders/upload',
+            postman: 'Use form-data body type with key "tender" (type: File)',
           },
         },
-        timestamp,
-        requestId,
-      });
-    }
-    
-    next();
+      },
+      timestamp,
+      requestId,
+    });
   },
   asyncHandler((req: Request, res: Response, next: NextFunction) => 
     tenderController.uploadTender(req, res, next)
