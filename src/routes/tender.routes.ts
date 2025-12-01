@@ -2,6 +2,7 @@ import { Router, Request, Response, NextFunction } from 'express';
 import { TenderController } from '../controllers/tender.controller';
 import upload, { handleMulterError } from '../middleware/upload.middleware';
 import { uploadRateLimiter } from '../middleware/rate-limit.middleware';
+import { asyncHandler } from '../middleware/error.middleware';
 
 const router = Router();
 const tenderController = new TenderController();
@@ -20,7 +21,9 @@ router.post(
   uploadRateLimiter,
   upload.single('tender'),
   handleMulterError,
-  (req: Request, res: Response, next: NextFunction) => tenderController.uploadTender(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.uploadTender(req, res, next)
+  )
 );
 
 /**
@@ -32,7 +35,9 @@ router.post(
  */
 router.post(
   '/:id/approve',
-  (req: Request, res: Response, next: NextFunction) => tenderController.approveTender(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.approveTender(req, res, next)
+  )
 );
 
 /**
@@ -44,7 +49,9 @@ router.post(
  */
 router.post(
   '/:id/reject',
-  (req: Request, res: Response, next: NextFunction) => tenderController.rejectTender(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.rejectTender(req, res, next)
+  )
 );
 
 /**
@@ -56,7 +63,9 @@ router.post(
  */
 router.put(
   '/:id/items',
-  (req: Request, res: Response, next: NextFunction) => tenderController.updateBOQItems(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.updateBOQItems(req, res, next)
+  )
 );
 
 /**
@@ -65,7 +74,9 @@ router.put(
  */
 router.get(
   '/:id/review-logs',
-  (req: Request, res: Response, next: NextFunction) => tenderController.getReviewLogs(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.getReviewLogs(req, res, next)
+  )
 );
 
 /**
@@ -74,7 +85,9 @@ router.get(
  */
 router.get(
   '/',
-  (req: Request, res: Response, next: NextFunction) => tenderController.listTenders(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.listTenders(req, res, next)
+  )
 );
 
 /**
@@ -83,7 +96,9 @@ router.get(
  */
 router.get(
   '/:id',
-  (req: Request, res: Response, next: NextFunction) => tenderController.getTender(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.getTender(req, res, next)
+  )
 );
 
 /**
@@ -92,7 +107,9 @@ router.get(
  */
 router.delete(
   '/:id',
-  (req: Request, res: Response, next: NextFunction) => tenderController.deleteTender(req, res, next)
+  asyncHandler((req: Request, res: Response, next: NextFunction) => 
+    tenderController.deleteTender(req, res, next)
+  )
 );
 
 export default router;
