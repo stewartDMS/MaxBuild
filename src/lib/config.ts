@@ -11,17 +11,17 @@ export function hasValidOpenAIKey(): boolean {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return false;
   
-  // Check for common placeholder values
-  const placeholders = [
+  // Check for common exact placeholder values (case-insensitive)
+  const exactPlaceholders = [
     'your_openai_api_key_here',
     'your-api-key',
+    'your-api-key-here',
+    'insert_key_here',
     'sk-your-key-here',
-    'INSERT_KEY_HERE',
   ];
   
-  return !placeholders.some(placeholder => 
-    key.toLowerCase().includes(placeholder.toLowerCase())
-  );
+  const lowerKey = key.toLowerCase().trim();
+  return !exactPlaceholders.includes(lowerKey);
 }
 
 /**
@@ -32,17 +32,15 @@ export function hasValidDatabaseUrl(): boolean {
   const url = process.env.DATABASE_URL;
   if (!url) return false;
   
-  // Check for common placeholder values
-  const placeholders = [
-    'user:password@localhost',
-    'username:password',
-    'your_password',
-    'INSERT_URL_HERE',
-  ];
-  
-  return !placeholders.some(placeholder => 
-    url.toLowerCase().includes(placeholder.toLowerCase())
+  // Check for common placeholder patterns in database URLs
+  const hasPlaceholder = (
+    url.includes('user:password@') ||
+    url.includes('username:password@') ||
+    url.includes('your_password') ||
+    url.toLowerCase().includes('insert_url_here')
   );
+  
+  return !hasPlaceholder;
 }
 
 /**
@@ -56,3 +54,9 @@ export function getConfigurationStatus() {
     isFullyConfigured: hasValidOpenAIKey() && hasValidDatabaseUrl(),
   };
 }
+
+/**
+ * Constants for error messages
+ */
+export const MOCK_ENDPOINT_PATH = '/api/tenders/upload-mock';
+export const SETUP_GUIDE_PATH = 'SETUP_GUIDE.md';

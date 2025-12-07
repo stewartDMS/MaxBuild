@@ -4,7 +4,7 @@ import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import { ExcelService } from './excel.service';
 import { CSVService } from './csv.service';
 import { UnsupportedFileTypeError, EmptyFileError, ResourceNotFoundError, DatabaseError, AppError, ParsingError } from '../lib/errors';
-import { hasValidOpenAIKey, hasValidDatabaseUrl } from '../lib/config';
+import { hasValidOpenAIKey, hasValidDatabaseUrl, MOCK_ENDPOINT_PATH, SETUP_GUIDE_PATH } from '../lib/config';
 import type { BOQExtraction, BOQItem } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -85,8 +85,8 @@ export class TenderService {
         503,
         'OPENAI_NOT_CONFIGURED',
         {
-          suggestion: 'Add OPENAI_API_KEY to your .env file. See SETUP_GUIDE.md for instructions.',
-          alternativeEndpoint: 'For testing without setup, use POST /api/tenders/upload-mock',
+          suggestion: `Add OPENAI_API_KEY to your .env file. See ${SETUP_GUIDE_PATH} for instructions.`,
+          alternativeEndpoint: `For testing without setup, use POST ${MOCK_ENDPOINT_PATH}`,
         }
       );
     }
@@ -97,8 +97,8 @@ export class TenderService {
         503,
         'DATABASE_NOT_CONFIGURED',
         {
-          suggestion: 'Add DATABASE_URL to your .env file and run migrations. See SETUP_GUIDE.md for instructions.',
-          alternativeEndpoint: 'For testing without setup, use POST /api/tenders/upload-mock',
+          suggestion: `Add DATABASE_URL to your .env file and run migrations. See ${SETUP_GUIDE_PATH} for instructions.`,
+          alternativeEndpoint: `For testing without setup, use POST ${MOCK_ENDPOINT_PATH}`,
         }
       );
     }
