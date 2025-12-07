@@ -77,6 +77,34 @@ export class TenderService {
   ): Promise<TenderUploadResult | TenderPreviewResult> {
     console.log('🚀 Starting tender processing:', { fileName, fileSize, mimeType, hasContext: !!context, requiresReview });
     
+    // Early validation: Check for required configuration
+    const hasOpenAIKey = !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here';
+    const hasDatabaseUrl = !!process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('user:password@localhost');
+    
+    if (!hasOpenAIKey) {
+      throw new AppError(
+        'OpenAI API key is not configured. The real upload endpoint requires an OpenAI API key to function.',
+        503,
+        'OPENAI_NOT_CONFIGURED',
+        {
+          suggestion: 'Add OPENAI_API_KEY to your .env file. See SETUP_GUIDE.md for instructions.',
+          alternativeEndpoint: 'For testing without setup, use POST /api/tenders/upload-mock',
+        }
+      );
+    }
+    
+    if (!hasDatabaseUrl) {
+      throw new AppError(
+        'Database is not configured. The real upload endpoint requires a PostgreSQL database to function.',
+        503,
+        'DATABASE_NOT_CONFIGURED',
+        {
+          suggestion: 'Add DATABASE_URL to your .env file and run migrations. See SETUP_GUIDE.md for instructions.',
+          alternativeEndpoint: 'For testing without setup, use POST /api/tenders/upload-mock',
+        }
+      );
+    }
+    
     let extractedText: string;
     let boqExtraction: BOQExtraction;
 
