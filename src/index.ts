@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { apiRateLimiter } from './middleware/rate-limit.middleware';
+import { getConfigurationStatus } from './lib/config';
 
 // Load environment variables
 dotenv.config();
@@ -106,10 +107,9 @@ app.listen(PORT, () => {
   // Check configuration and provide helpful startup messages
   console.log('\n📋 Configuration Status:');
   
-  const hasOpenAIKey = !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here';
-  const hasDatabaseUrl = !!process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('user:password@localhost');
+  const config = getConfigurationStatus();
   
-  if (hasOpenAIKey) {
+  if (config.hasOpenAIKey) {
     console.log('✅ OpenAI API Key: Configured');
   } else {
     console.log('⚠️  OpenAI API Key: Not configured');
@@ -117,7 +117,7 @@ app.listen(PORT, () => {
     console.log('   → Set OPENAI_API_KEY in .env file to enable');
   }
   
-  if (hasDatabaseUrl) {
+  if (config.hasDatabaseUrl) {
     console.log('✅ Database: Configured');
   } else {
     console.log('⚠️  Database: Not configured');
@@ -125,7 +125,7 @@ app.listen(PORT, () => {
     console.log('   → Set DATABASE_URL in .env file to enable');
   }
   
-  if (!hasOpenAIKey || !hasDatabaseUrl) {
+  if (!config.isFullyConfigured) {
     console.log('\n💡 Quick Start:');
     console.log('   1. For testing without setup, use the mock endpoint:');
     console.log(`      curl -X POST http://localhost:${PORT}/api/tenders/upload-mock`);

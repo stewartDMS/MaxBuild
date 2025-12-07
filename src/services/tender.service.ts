@@ -4,6 +4,7 @@ import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import { ExcelService } from './excel.service';
 import { CSVService } from './csv.service';
 import { UnsupportedFileTypeError, EmptyFileError, ResourceNotFoundError, DatabaseError, AppError, ParsingError } from '../lib/errors';
+import { hasValidOpenAIKey, hasValidDatabaseUrl } from '../lib/config';
 import type { BOQExtraction, BOQItem } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -78,10 +79,7 @@ export class TenderService {
     console.log('🚀 Starting tender processing:', { fileName, fileSize, mimeType, hasContext: !!context, requiresReview });
     
     // Early validation: Check for required configuration
-    const hasOpenAIKey = !!process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY !== 'your_openai_api_key_here';
-    const hasDatabaseUrl = !!process.env.DATABASE_URL && !process.env.DATABASE_URL.includes('user:password@localhost');
-    
-    if (!hasOpenAIKey) {
+    if (!hasValidOpenAIKey()) {
       throw new AppError(
         'OpenAI API key is not configured. The real upload endpoint requires an OpenAI API key to function.',
         503,
@@ -93,7 +91,7 @@ export class TenderService {
       );
     }
     
-    if (!hasDatabaseUrl) {
+    if (!hasValidDatabaseUrl()) {
       throw new AppError(
         'Database is not configured. The real upload endpoint requires a PostgreSQL database to function.',
         503,
