@@ -38,12 +38,14 @@ print_result() {
 # Helper function to check if server is running
 check_server() {
     echo "Checking if server is running..."
-    if curl -s "$BASE_URL/api/health" > /dev/null 2>&1; then
-        echo -e "${GREEN}✓ Server is running${NC}"
+    # Check mock endpoint directly since it doesn't require database
+    if curl -s "$BASE_URL$ENDPOINT" > /dev/null 2>&1; then
+        echo -e "${GREEN}✓ Server is running and mock endpoint is accessible${NC}"
         return 0
     else
-        echo -e "${RED}✗ Server is not running${NC}"
+        echo -e "${RED}✗ Server is not running or mock endpoint is not accessible${NC}"
         echo "Please start the server with: npm run dev"
+        echo "To check if port 3000 is in use: lsof -i :3000"
         exit 1
     fi
     echo ""
@@ -57,11 +59,8 @@ test_no_file() {
     
     RESPONSE=$(curl -s -X POST "$BASE_URL$ENDPOINT")
     
-    # Check if response contains expected fields
-    if echo "$RESPONSE" | jq -e '.success == true' > /dev/null && \
-       echo "$RESPONSE" | jq -e '.isDemo == true' > /dev/null && \
-       echo "$RESPONSE" | jq -e '.data.tenderId' > /dev/null && \
-       echo "$RESPONSE" | jq -e '.data.processingSteps | length == 5' > /dev/null; then
+    # Check if response contains expected fields (combined jq expression for efficiency)
+    if echo "$RESPONSE" | jq -e '.success == true and .isDemo == true and .data.tenderId != null and (.data.processingSteps | length) == 5' > /dev/null; then
         print_result 0 "Mock upload without file works correctly"
         echo "Tender ID: $(echo "$RESPONSE" | jq -r '.data.tenderId')"
         echo "Item Count: $(echo "$RESPONSE" | jq -r '.data.itemCount')"

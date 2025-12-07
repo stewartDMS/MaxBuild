@@ -298,7 +298,7 @@ The mock endpoint provides **extensive console logging** for debugging and demon
       ],
       "totalEstimatedCost": 223850,
       "currency": "USD",
-      "extractionDate": "2024-01-01T00:00:00.000Z",
+      "extractionDate": "2025-12-07T23:00:00.000Z",
       "notes": "Standard extraction without custom context"
     },
     "itemCount": 9,
@@ -306,7 +306,7 @@ The mock endpoint provides **extensive console logging** for debugging and demon
       {
         "phase": "FILE_UPLOAD",
         "status": "completed",
-        "timestamp": "2024-01-01T00:00:00.000Z",
+        "timestamp": "2025-12-07T23:00:00.000Z",
         "details": "File \"demo-tender-document.pdf\" (500.00 KB) received successfully",
         "durationMs": 0
       }
@@ -369,7 +369,8 @@ Use this checklist to verify the mock endpoint is working correctly:
 
 ### Issue: Server won't start
 **Solution**: 
-- Check if port 3000 is available
+- Check if port 3000 is available: `lsof -i :3000` or `netstat -an | grep 3000`
+- If port is in use, kill the process or use a different port
 - Install dependencies: `npm install`
 - Check for syntax errors: `npm run build`
 
