@@ -27,7 +27,7 @@ console.log('✅ Environment variables loaded');
 // Create Express app
 console.log('🏗️  Creating Express application...');
 const app: Application = express();
-const PORT = process.env.PORT || 3000;
+const PORT = parseInt(process.env.PORT || '3000', 10);
 console.log(`✅ Express application created`);
 console.log(`🔌 Port Configuration: ${PORT} (from ${process.env.PORT ? 'PORT env variable' : 'default'})`);
 
@@ -175,7 +175,7 @@ console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
 console.log(`⏰ Start time: ${new Date().toISOString()}`);
 
 try {
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log('='.repeat(80));
     console.log('✅ SERVER STARTED SUCCESSFULLY!');
     console.log('='.repeat(80));
