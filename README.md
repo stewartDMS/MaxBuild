@@ -44,13 +44,15 @@ Perfect for testing and demos without any configuration:
 
 ```bash
 # 1. Install and start
-npm install && npx ts-node src/index.ts
+npm ci --legacy-peer-deps && npx ts-node src/index.ts
 
 # 2. Test immediately
 curl -X POST http://localhost:3000/api/tenders/upload-mock
 ```
 
 **No OpenAI API key or database required!** See [MOCK_ENDPOINT_TESTING.md](MOCK_ENDPOINT_TESTING.md) for details.
+
+> **Note:** Use `npm ci --legacy-peer-deps` to resolve peer dependency conflicts. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if you encounter issues.
 
 ### 🚀 Real Endpoint (Production Use) - **Requires Setup**
 
@@ -1934,6 +1936,39 @@ When deploying this application:
 - Secure your OpenAI and database credentials
 - Implement proper authentication and authorization
 - Regular security audits
+
+**For complete deployment instructions**, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## Deployment
+
+MaxBuild can be deployed to various cloud platforms. See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment checklists and guides for:
+
+- **Railway** - Recommended for quick deployment with PostgreSQL
+- **Azure Web App** - GitHub Actions workflow already configured
+- **Docker** - Production-ready multi-stage Dockerfile included
+- **Other Platforms** - Generic cloud deployment instructions
+
+### Quick Deploy to Railway
+
+```bash
+# 1. Connect GitHub repo to Railway
+# 2. Set build command: npm ci --legacy-peer-deps && npm run build
+# 3. Set start command: npm start
+# 4. Add PostgreSQL service
+# 5. Set environment variables
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed Railway setup instructions.
+
+### Important: npm Peer Dependencies
+
+This project uses `npm ci --legacy-peer-deps` to resolve peer dependency conflicts between zod v4 and @langchain/community dependencies. This is configured in:
+- `.npmrc` for local development
+- `Dockerfile` for all build stages
+- `.github/workflows/main_maxbuild.yml` for CI/CD
+- All documentation
+
+If you encounter `ERESOLVE` errors, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
 
 ## Contributing
 
