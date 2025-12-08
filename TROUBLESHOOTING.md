@@ -23,6 +23,7 @@ npm error Found: zod@4.1.12
 npm error Could not resolve dependency:
 npm error peer @browserbasehq/stagehand@"^1.0.0" from @langchain/community@1.0.4
 npm error Conflicting peer dependency: zod@3.25.76
+npm error   peer zod@"^3.23.8" from @browserbasehq/stagehand@1.14.0
 ```
 
 **Root Cause:**
