@@ -6,15 +6,12 @@
 # ============================================================================
 FROM node:20-alpine AS base
 
-# Add labels for better container management
 LABEL maintainer="MaxBuild Team"
 LABEL description="MaxBuild API - AI-Powered Tender Automation System"
 LABEL version="1.0.0"
 
-# Set working directory
 WORKDIR /app
 
-# Copy package files
 COPY package*.json ./
 
 # ============================================================================
@@ -23,22 +20,16 @@ COPY package*.json ./
 FROM base AS development
 
 # Install all dependencies (including devDependencies)
-# Use --legacy-peer-deps to bypass strict peer dependency resolution
 RUN npm ci --legacy-peer-deps
 
-# Copy source code
 COPY . .
 
-# Generate Prisma client
 RUN npx prisma generate || echo "⚠️  Prisma generate skipped (will be done at runtime)"
 
-# Expose port
 EXPOSE 3000
 
-# Set NODE_ENV
 ENV NODE_ENV=development
 
-# Start development server with hot-reload
 CMD ["npm", "run", "dev"]
 
 # ============================================================================
@@ -46,17 +37,12 @@ CMD ["npm", "run", "dev"]
 # ============================================================================
 FROM base AS build
 
-# Install all dependencies (including devDependencies for build)
-# Use --legacy-peer-deps to bypass strict peer dependency resolution
 RUN npm ci --legacy-peer-deps
 
-# Copy source code and configuration
 COPY . .
 
-# Generate Prisma client
 RUN npx prisma generate
 
-# Build TypeScript to JavaScript
 RUN npm run build
 
 # ============================================================================
@@ -64,35 +50,29 @@ RUN npm run build
 # ============================================================================
 FROM base AS production
 
-# Install only production dependencies
-# Use --legacy-peer-deps to bypass strict peer dependency resolution
+# Install only production dependencies; use legacy-peer-deps
 RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
-# Copy built application from build stage
+# For Prisma + Alpine, ensure OpenSSL compatibility
+RUN apk add --no-cache openssl1.1-compat
+
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/prisma ./prisma
 
-# Copy necessary runtime files
 COPY package*.json ./
 COPY .env.example ./.env.example
 
-# Create uploads directory
 RUN mkdir -p uploads && chmod 755 uploads
 
-# Create a non-root user for security
 RUN addgroup -g 1001 -S nodejs && \
     adduser -S nodejs -u 1001 && \
     chown -R nodejs:nodejs /app
 
-# Switch to non-root user
 USER nodejs
 
-# Expose port
 EXPOSE 3000
 
-# Set NODE_ENV
 ENV NODE_ENV=production
 
-# Start production server
 CMD ["npm", "start"]
