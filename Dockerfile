@@ -11,15 +11,6 @@ LABEL maintainer="MaxBuild Team"
 LABEL description="MaxBuild API - AI-Powered Tender Automation System"
 LABEL version="1.0.0"
 
-# Install basic utilities and bash for debugging
-RUN apk add --no-cache \
-    bash \
-    curl \
-    tini
-
-# Use tini to handle signals properly
-ENTRYPOINT ["/sbin/tini", "--"]
-
 # Set working directory
 WORKDIR /app
 
@@ -45,10 +36,6 @@ EXPOSE 3000
 
 # Set NODE_ENV
 ENV NODE_ENV=development
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Start development server with hot-reload
 CMD ["npm", "run", "dev"]
@@ -103,10 +90,6 @@ EXPOSE 3000
 
 # Set NODE_ENV
 ENV NODE_ENV=production
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:3000/api/health || exit 1
 
 # Start production server
 CMD ["npm", "start"]

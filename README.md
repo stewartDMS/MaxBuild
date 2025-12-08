@@ -6,6 +6,38 @@ AI-Powered Tender Automation System
 
 MaxBuild provides **two upload endpoints** for different use cases:
 
+### 🐳 Docker Quick Start (Recommended)
+
+The easiest way to run MaxBuild with all dependencies:
+
+```bash
+# 1. Clone and navigate to repository
+git clone https://github.com/stewartDMS/MaxBuild.git
+cd MaxBuild
+
+# 2. Create environment file (optional - mock endpoint works without config)
+cp .env.example .env
+# Edit .env with your OpenAI API key if needed
+
+# 3. Start with Docker Compose
+docker-compose up
+
+# 4. Test the API
+curl -X POST http://localhost:3000/api/tenders/upload-mock
+```
+
+**What you get:**
+- ✅ MaxBuild API running on port 3000
+- ✅ PostgreSQL database on port 5432
+- ✅ Auto-restart on code changes (development mode)
+- ✅ Health checks and container monitoring
+- ✅ All dependencies pre-installed
+
+**Production Deployment:**
+```bash
+docker-compose -f docker-compose.prod.yml up -d
+```
+
 ### 🎭 Mock Endpoint (No Setup Required) - **Ready to Use**
 
 Perfect for testing and demos without any configuration:
@@ -1145,6 +1177,423 @@ All errors are displayed to the user via detailed toast notifications in the fro
 - Suggested actions to resolve the issue
 - Additional context when available
 
+## Container & Deployment Troubleshooting
+
+### 🐳 Docker Container Issues
+
+#### Container Won't Start
+
+**Symptoms:**
+- Container exits immediately after starting
+- `docker ps` shows no running MaxBuild container
+- Logs show startup errors
+
+**Debugging Steps:**
+
+1. **Check container logs:**
+```bash
+# View logs from the last run
+docker logs maxbuild-api
+
+# Follow logs in real-time
+docker logs -f maxbuild-api
+
+# View logs with timestamps
+docker logs -t maxbuild-api
+```
+
+2. **Look for startup diagnostics:**
+The application now includes comprehensive startup logging. You should see:
+```
+================================================================================
+🚀 MaxBuild API - Starting up...
+📅 Timestamp: 2025-12-08T03:53:51.565Z
+🏠 Working Directory: /app
+📦 Node Version: v20.19.6
+🖥️  Platform: linux
+🔧 Process ID (PID): 3646
+================================================================================
+```
+
+If you don't see this, Node.js isn't starting. Check the Dockerfile CMD.
+
+3. **Common startup errors and solutions:**
+
+**Error: "Port already in use" (EADDRINUSE)**
+```
+❌ ERROR: Port already in use
+   Port 3000 is already being used by another process
+```
+**Solution:**
+```bash
+# Stop other containers using port 3000
+docker ps | grep 3000
+docker stop <container-id>
+
+# Or use a different port
+docker run -p 3001:3000 maxbuild-api
+```
+
+**Error: "Permission denied" (EACCES)**
+```
+❌ ERROR: Permission denied
+   Cannot bind to port 3000 - permission denied
+```
+**Solution:**
+- Use a non-privileged port (>1024) - default is 3000, which should work
+- Check if running as non-root user (security best practice)
+- Ensure PORT environment variable is set correctly
+
+**Error: "Cannot find module" or Import errors**
+```
+Error: Cannot find module 'express'
+```
+**Solution:**
+```bash
+# Rebuild the container to ensure dependencies are installed
+docker-compose build --no-cache api
+docker-compose up
+```
+
+#### Container Starts But API Doesn't Respond
+
+**Symptoms:**
+- Container is running (`docker ps` shows it)
+- Cannot access API at http://localhost:3000
+- Health check failing
+
+**Debugging Steps:**
+
+1. **Check if Express is actually listening:**
+```bash
+docker logs maxbuild-api | grep "SERVER STARTED"
+```
+You should see:
+```
+================================================================================
+✅ SERVER STARTED SUCCESSFULLY!
+================================================================================
+🚀 MAX Build API server is running on port 3000
+```
+
+2. **Verify port mapping:**
+```bash
+docker ps | grep maxbuild-api
+```
+Should show: `0.0.0.0:3000->3000/tcp`
+
+3. **Test from inside the container:**
+```bash
+# Enter the container
+docker exec -it maxbuild-api sh
+
+# Test the API
+curl http://localhost:3000/
+curl http://localhost:3000/api/health
+
+# Check if process is running
+ps aux | grep node
+```
+
+4. **Check firewall/network:**
+```bash
+# Test from host
+curl http://localhost:3000/
+curl http://127.0.0.1:3000/
+
+# Check if port is listening
+netstat -an | grep 3000  # Linux/Mac
+# or
+lsof -i :3000  # Mac/Linux
+```
+
+#### Silent Failures - Container Running But Not Working
+
+**Symptoms:**
+- Container appears healthy
+- No error logs
+- API endpoints return 500 errors or hang
+
+**Debugging Steps:**
+
+1. **Check application logs for warnings:**
+```bash
+docker logs maxbuild-api | grep "⚠️"
+```
+Look for configuration warnings like:
+```
+⚠️  OpenAI API Key: Not configured
+⚠️  Database: Not configured
+```
+
+2. **Verify environment variables:**
+```bash
+docker exec maxbuild-api env | grep -E "DATABASE_URL|OPENAI_API_KEY|PORT"
+```
+
+3. **Check database connectivity:**
+```bash
+# Test database connection
+docker exec maxbuild-api curl http://localhost:3000/api/health
+```
+
+Expected response if database is down:
+```json
+{
+  "success": false,
+  "message": "MAX Build API is running but database is unavailable",
+  "db": "error"
+}
+```
+
+4. **Monitor resource usage:**
+```bash
+# Check if container is running out of memory/CPU
+docker stats maxbuild-api
+```
+
+#### Health Check Failing
+
+**Symptoms:**
+- Docker reports container as "unhealthy"
+- Container keeps restarting
+
+**Debugging Steps:**
+
+1. **Check health check endpoint manually:**
+```bash
+docker exec maxbuild-api curl -f http://localhost:3000/api/health
+```
+
+2. **Review health check logs:**
+```bash
+docker inspect maxbuild-api | grep -A 10 Health
+```
+
+3. **Common health check issues:**
+- API takes longer than 40s to start (increase `start-period` in Dockerfile)
+- Database not ready when API starts (check `depends_on` in docker-compose)
+- Health endpoint returning 500 error (check database connection)
+
+### 🌐 Azure Web App / Cloud Deployment Issues
+
+#### Application Doesn't Start in Azure
+
+**Debugging Steps:**
+
+1. **Check Azure Application Logs:**
+```bash
+# Using Azure CLI
+az webapp log tail --name MaxBuild --resource-group <your-resource-group>
+
+# Or download logs
+az webapp log download --name MaxBuild --resource-group <your-resource-group>
+```
+
+2. **Look for startup diagnostics:**
+Check logs for the startup banner:
+```
+================================================================================
+🚀 MaxBuild API - Starting up...
+```
+
+If missing, the application isn't starting. Common causes:
+- Wrong startup command in Azure configuration
+- Missing PORT environment variable
+- Build artifacts not deployed
+
+3. **Verify Azure Configuration:**
+- **Startup Command**: Should be `npm start` or `node dist/index.js`
+- **PORT**: Azure sets this automatically - ensure your code reads `process.env.PORT`
+- **Node Version**: Check runtime version matches package.json engines
+
+4. **Check Azure Environment Variables:**
+In Azure Portal → Configuration → Application Settings:
+- `DATABASE_URL` - PostgreSQL connection string
+- `OPENAI_API_KEY` - OpenAI API key
+- `NODE_ENV` - Should be `production`
+
+#### Port Binding Issues in Azure
+
+**Common Error:**
+```
+Error: Cannot bind to port 8080 - permission denied
+```
+
+**Solution:**
+Azure assigns the port via the `PORT` environment variable. Ensure your code uses:
+```javascript
+const PORT = process.env.PORT || 3000;
+```
+
+**Never hardcode the port in production!**
+
+#### Build Fails in CI/CD
+
+**Check GitHub Actions logs:**
+```bash
+# View in GitHub: Actions tab → Select workflow run
+# Look for "npm run build" step
+```
+
+**Common build errors:**
+- TypeScript compilation errors
+- Missing dependencies
+- Prisma generation failures
+
+**Solution:**
+```bash
+# Test build locally first
+npm run build
+
+# Check for TypeScript errors
+npx tsc --noEmit
+
+# Ensure Prisma schema is valid
+npx prisma generate
+```
+
+### 📊 Startup Logging Reference
+
+The application includes comprehensive startup diagnostics. Here's what to look for:
+
+**Successful Startup Sequence:**
+
+```
+================================================================================
+🚀 MaxBuild API - Starting up...
+================================================================================
+📝 Loading environment variables from .env file...
+✅ Environment variables loaded
+🏗️  Creating Express application...
+✅ Express application created
+🔌 Port Configuration: 3000 (from default)
+⚙️  Configuring middleware...
+  ✓ CORS middleware enabled
+  ✓ JSON body parser enabled
+  ✓ URL-encoded body parser enabled
+  ✓ Rate limiting middleware configured for /api routes
+🛣️  Configuring API routes...
+  ✓ API routes mounted at /api
+  ✓ Root endpoint configured at /
+  ✓ 404 handler configured
+  ✓ Error handler configured
+✅ All middleware and routes configured successfully
+
+================================================================================
+🚀 STARTING EXPRESS SERVER
+================================================================================
+📍 Attempting to bind to port: 3000
+🌐 Host: 0.0.0.0 (all interfaces)
+📝 Environment: development
+⏰ Start time: 2025-12-08T03:53:53.218Z
+================================================================================
+✅ SERVER STARTED SUCCESSFULLY!
+================================================================================
+🚀 MAX Build API server is running on port 3000
+🔌 Server listening on: :::3000
+📡 Protocol: IPv6
+
+📋 Configuration Status:
+✅ OpenAI API Key: Configured
+✅ Database: Configured
+
+================================================================================
+🎉 APPLICATION READY TO ACCEPT REQUESTS
+================================================================================
+```
+
+**What Each Stage Means:**
+
+| Log Message | Meaning | If Missing |
+|-------------|---------|-----------|
+| "MaxBuild API - Starting up..." | Node.js process started | Check Dockerfile CMD, container didn't start |
+| "Environment variables loaded" | .env file loaded | Check .env file exists and is readable |
+| "Express application created" | Express initialized | Check for import/require errors |
+| "All middleware configured" | Middleware setup complete | Check middleware imports and configuration |
+| "SERVER STARTED SUCCESSFULLY!" | Express is listening | Port conflict or permission issue |
+| "APPLICATION READY" | Fully operational | - |
+
+**Error Logging:**
+
+All errors are logged with detailed context:
+```
+================================================================================
+❌ SERVER STARTUP ERROR
+================================================================================
+⚠️  Failed to start server on port 3000
+🕒 Error time: 2025-12-08T03:53:53.218Z
+
+❌ ERROR: Port already in use
+   Port 3000 is already being used by another process
+
+💡 SOLUTIONS:
+   1. Stop the other process using this port
+   2. Use a different port: PORT=3001 npm run dev
+   3. Find the process: lsof -i :3000 (Mac/Linux)
+================================================================================
+```
+
+### 🔧 Quick Diagnostic Commands
+
+**Check if API is actually running:**
+```bash
+# Local/Docker
+curl http://localhost:3000/
+
+# Azure
+curl https://maxbuild.azurewebsites.net/
+```
+
+**View startup logs:**
+```bash
+# Docker
+docker logs maxbuild-api | head -100
+
+# Azure
+az webapp log tail --name MaxBuild --resource-group <your-rg>
+
+# Local
+npm run dev 2>&1 | tee startup.log
+```
+
+**Test specific endpoints:**
+```bash
+# Health check
+curl http://localhost:3000/api/health
+
+# Root endpoint
+curl http://localhost:3000/
+
+# Mock upload (no dependencies)
+curl -X POST http://localhost:3000/api/tenders/upload-mock
+```
+
+**Verify container environment:**
+```bash
+# Check environment variables
+docker exec maxbuild-api env
+
+# Check Node version
+docker exec maxbuild-api node --version
+
+# Check running processes
+docker exec maxbuild-api ps aux
+
+# Test connectivity from inside container
+docker exec maxbuild-api curl http://localhost:3000/
+```
+
+### 📝 Best Practices for Container Deployment
+
+1. **Always check startup logs first** - They contain the most useful diagnostic information
+2. **Use health checks** - Properly configured health checks prevent silent failures
+3. **Test locally with Docker** - Before deploying to cloud, test with `docker-compose up`
+4. **Set proper environment variables** - Missing config causes most deployment issues
+5. **Monitor resource usage** - Ensure adequate CPU/memory allocation
+6. **Use structured logging** - All important events are logged with clear markers (✅, ❌, ⚠️)
+7. **Test the mock endpoint first** - Verify API is working before testing full features
+
 ## Troubleshooting
 
 ### Common Upload Issues
@@ -1307,7 +1756,138 @@ If you encounter persistent issues:
 
 ## Deployment
 
-### Backend Deployment
+### 🐳 Docker Deployment (Recommended)
+
+Docker provides the most consistent and reliable deployment experience across all environments.
+
+#### Development Deployment
+
+```bash
+# 1. Clone repository
+git clone https://github.com/stewartDMS/MaxBuild.git
+cd MaxBuild
+
+# 2. Create environment file
+cp .env.example .env
+# Edit .env with your configuration
+
+# 3. Start with Docker Compose
+docker-compose up
+
+# 4. Access the API
+curl http://localhost:3000/
+```
+
+**What's included:**
+- MaxBuild API on port 3000
+- PostgreSQL database on port 5432
+- Hot-reload for development
+- Health checks
+- Automatic restart on failure
+
+#### Production Deployment
+
+```bash
+# 1. Set environment variables
+export DATABASE_URL="postgresql://..."
+export OPENAI_API_KEY="sk-..."
+export POSTGRES_PASSWORD="secure-password"
+
+# 2. Deploy with production compose file
+docker-compose -f docker-compose.prod.yml up -d
+
+# 3. Run database migrations
+docker exec maxbuild-api-prod npx prisma migrate deploy
+
+# 4. Verify deployment
+curl http://localhost:3000/api/health
+```
+
+**Production features:**
+- Optimized build with multi-stage Dockerfile
+- Non-root user for security
+- Resource limits (CPU/Memory)
+- Persistent volumes for database
+- Always restart policy
+- Production-grade health checks
+
+#### Building Docker Image Manually
+
+```bash
+# Development image
+docker build -t maxbuild-api:dev --target development .
+
+# Production image
+docker build -t maxbuild-api:prod --target production .
+
+# Run production container
+docker run -d \
+  -p 3000:3000 \
+  -e DATABASE_URL="postgresql://..." \
+  -e OPENAI_API_KEY="sk-..." \
+  --name maxbuild-api \
+  maxbuild-api:prod
+```
+
+#### Docker Environment Variables
+
+Required environment variables for container:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `PORT` | API port (optional, defaults to 3000) | `3000` |
+| `NODE_ENV` | Environment mode | `production` or `development` |
+| `DATABASE_URL` | PostgreSQL connection string | `postgresql://user:pass@host:5432/db` |
+| `OPENAI_API_KEY` | OpenAI API key | `sk-...` |
+| `LANGGRAPH_API_KEY` | LangGraph API key (optional) | `lsv2_...` |
+| `MAX_FILE_SIZE` | Max upload size in bytes | `10485760` (10MB) |
+
+### Azure Web App Deployment
+
+#### Automatic Deployment via GitHub Actions
+
+This repository is configured with GitHub Actions for automatic deployment to Azure Web App.
+
+**How it works:**
+1. Push to `main` branch triggers workflow
+2. Dependencies installed and TypeScript compiled
+3. Built application deployed to Azure Web App
+4. Azure automatically starts the application
+
+**Verify deployment:**
+```bash
+# Check Azure logs
+az webapp log tail --name MaxBuild --resource-group <your-rg>
+
+# Test the API
+curl https://maxbuild.azurewebsites.net/
+```
+
+**Important Azure Configuration:**
+- **Startup Command**: `npm start` (runs `node dist/index.js`)
+- **Node Version**: 24.x (set in `.github/workflows/main_maxbuild.yml`)
+- **Always On**: Enable for production
+- **Health Check Path**: `/api/health`
+
+#### Manual Azure Deployment
+
+```bash
+# 1. Build the application locally
+npm install
+npm run build
+
+# 2. Deploy using Azure CLI
+az webapp up \
+  --name MaxBuild \
+  --resource-group <your-resource-group> \
+  --runtime "NODE:24-lts"
+
+# 3. Configure environment variables in Azure Portal
+# Go to: Configuration → Application Settings
+# Add: DATABASE_URL, OPENAI_API_KEY, NODE_ENV=production
+```
+
+### Backend Deployment (Generic Platform)
 
 The backend can be deployed to any Node.js hosting platform (e.g., Heroku, Railway, Render). Make sure to:
 - Set all required environment variables
