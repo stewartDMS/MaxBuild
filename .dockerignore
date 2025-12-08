@@ -1,0 +1,71 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# CI/CD
+.github
+
+# Dependencies
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Build output
+dist
+*.tsbuildinfo
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development files
+*.md
+!README.md
+ARCHITECTURE.md
+ERROR_HANDLING_SUMMARY.md
+IMPLEMENTATION_ANALYSIS.md
+INVESTIGATION_SUMMARY.md
+MOCK_ENDPOINT_TESTING.md
+PROJECT_SUMMARY.md
+QUICKSTART.md
+SECURITY_FIX_SUMMARY.md
+SECURITY_RECOMMENDATIONS.md
+SETUP_GUIDE.md
+TASK_COMPLETION_SUMMARY.md
+TESTING.md
+
+# Test files
+test
+tests
+**/*.test.ts
+**/*.test.js
+**/*.spec.ts
+**/*.spec.js
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads (don't include uploaded files in image)
+uploads/*
+!uploads/.gitkeep
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*.yml
+
+# Other
+.langgraph_api
+*.log
