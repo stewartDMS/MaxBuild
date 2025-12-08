@@ -392,12 +392,144 @@ npm run dev
    - Set `DATABASE_URL` to Railway PostgreSQL URL
    - Set `OPENAI_API_KEY`
 
+4. **Recommended Railway Configuration:**
+
+   Create a `railway.json` (optional) or use Railway dashboard settings:
+   ```json
+   {
+     "$schema": "https://railway.app/railway.schema.json",
+     "build": {
+       "builder": "NIXPACKS",
+       "buildCommand": "npm ci --legacy-peer-deps && npm run build"
+     },
+     "deploy": {
+       "startCommand": "npm start",
+       "healthcheckPath": "/api/health",
+       "healthcheckTimeout": 300
+     }
+   }
+   ```
+
+5. **Railway + PostgreSQL Setup:**
+   - Add a PostgreSQL service in Railway
+   - Link it to your application
+   - Railway automatically provides `DATABASE_URL` variable
+   - No manual configuration needed!
+
+6. **Common Railway Issues:**
+
+   **Build timeout:**
+   - Railway has a 10-minute build timeout by default
+   - The `npm ci --legacy-peer-deps` should complete within this time
+   - If it times out, check Railway's builder logs for network issues
+
+   **Prisma Client not generated:**
+   - Ensure `npm run build` includes Prisma generation
+   - Or add postinstall script in package.json:
+     ```json
+     "scripts": {
+       "postinstall": "prisma generate"
+     }
+     ```
+
+   **Environment variables not set:**
+   - Check all required variables are set in Railway dashboard
+   - Variables: `OPENAI_API_KEY`, `DATABASE_URL`, `NODE_ENV`, `PORT`
+   - Railway automatically sets `PORT` - don't override unless needed
+
+### Deploying to Railway - Step by Step
+
+1. **Install Railway CLI** (optional):
+   ```bash
+   npm install -g @railway/cli
+   railway login
+   ```
+
+2. **Deploy from GitHub** (recommended):
+   - Connect your GitHub repository to Railway
+   - Railway automatically detects Node.js project
+   - Set build command: `npm ci --legacy-peer-deps && npm run build`
+   - Set start command: `npm start`
+
+3. **Deploy from CLI**:
+   ```bash
+   # In project directory
+   railway init
+   railway up
+   ```
+
+4. **Add PostgreSQL**:
+   ```bash
+   # Via CLI
+   railway add postgresql
+   
+   # Or via dashboard: Add Service → PostgreSQL
+   ```
+
+5. **Set Environment Variables**:
+   ```bash
+   # Via CLI
+   railway variables set OPENAI_API_KEY=sk-your-key
+   railway variables set NODE_ENV=production
+   
+   # Or via dashboard: Variables tab
+   ```
+
+6. **Deploy**:
+   ```bash
+   # Railway auto-deploys on git push if connected to GitHub
+   git push origin main
+   
+   # Or manually via CLI
+   railway up
+   ```
+
+7. **View Logs**:
+   ```bash
+   railway logs
+   ```
+
+8. **Test Deployment**:
+   ```bash
+   # Get your Railway URL from dashboard
+   curl https://your-app.railway.app/api/health
+   ```
+
 ### Azure/Other Cloud Platforms
 
 Update build commands in deployment configuration to use:
 ```bash
 npm ci --legacy-peer-deps && npm run build
 ```
+
+**Azure Web App:**
+- Update `.github/workflows/main_maxbuild.yml` (already configured in this project)
+- Ensure the workflow uses `npm ci --legacy-peer-deps`
+
+**Heroku:**
+Create a `Procfile`:
+```
+web: npm start
+```
+
+Add build script to `package.json`:
+```json
+{
+  "scripts": {
+    "heroku-postbuild": "npm run build"
+  }
+}
+```
+
+Set Heroku config:
+```bash
+heroku config:set NPM_CONFIG_LEGACY_PEER_DEPS=true
+```
+
+**Vercel/Netlify:**
+These platforms are designed for frontend apps. For the MaxBuild backend API:
+- Use Railway, Azure, or AWS instead
+- Or containerize with Docker and deploy to any platform
 
 ---
 

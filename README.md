@@ -1937,6 +1937,39 @@ When deploying this application:
 - Implement proper authentication and authorization
 - Regular security audits
 
+**For complete deployment instructions**, see [DEPLOYMENT.md](DEPLOYMENT.md).
+
+## Deployment
+
+MaxBuild can be deployed to various cloud platforms. See [DEPLOYMENT.md](DEPLOYMENT.md) for comprehensive deployment checklists and guides for:
+
+- **Railway** - Recommended for quick deployment with PostgreSQL
+- **Azure Web App** - GitHub Actions workflow already configured
+- **Docker** - Production-ready multi-stage Dockerfile included
+- **Other Platforms** - Generic cloud deployment instructions
+
+### Quick Deploy to Railway
+
+```bash
+# 1. Connect GitHub repo to Railway
+# 2. Set build command: npm ci --legacy-peer-deps && npm run build
+# 3. Set start command: npm start
+# 4. Add PostgreSQL service
+# 5. Set environment variables
+```
+
+See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed Railway setup instructions.
+
+### Important: npm Peer Dependencies
+
+This project uses `npm ci --legacy-peer-deps` to resolve peer dependency conflicts between zod v4 and @langchain/community dependencies. This is configured in:
+- `.npmrc` for local development
+- `Dockerfile` for all build stages
+- `.github/workflows/main_maxbuild.yml` for CI/CD
+- All documentation
+
+If you encounter `ERESOLVE` errors, see [TROUBLESHOOTING.md](TROUBLESHOOTING.md).
+
 ## Contributing
 
 Contributions are welcome! Please follow these guidelines:
