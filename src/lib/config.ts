@@ -8,8 +8,13 @@
  * @returns true if valid API key is present, false otherwise
  */
 export function hasValidOpenAIKey(): boolean {
+  // Explicitly check process.env.OPENAI_API_KEY (not any other variable)
   const key = process.env.OPENAI_API_KEY;
-  if (!key) return false;
+  
+  // Return false if key is not set or is empty/whitespace
+  if (!key || key.trim() === '') {
+    return false;
+  }
   
   // Check for common exact placeholder values (case-insensitive)
   const exactPlaceholders = [
@@ -18,10 +23,20 @@ export function hasValidOpenAIKey(): boolean {
     'your-api-key-here',
     'insert_key_here',
     'sk-your-key-here',
+    'your_key_here',
+    'replace_with_your_key',
   ];
   
   const lowerKey = key.toLowerCase().trim();
-  return !exactPlaceholders.includes(lowerKey);
+  
+  // Return false if the key matches any placeholder
+  if (exactPlaceholders.includes(lowerKey)) {
+    return false;
+  }
+  
+  // OpenAI keys should start with 'sk-' (for most key types)
+  // but we'll accept any non-placeholder value for flexibility
+  return true;
 }
 
 /**

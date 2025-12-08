@@ -1216,6 +1216,216 @@ All errors are displayed to the user via detailed toast notifications in the fro
 - Wait a few minutes and try again
 - Check OpenAI status page for service issues
 
+### Environment Configuration Issues
+
+#### Problem: "OpenAI API Key: Not configured" despite having .env file
+
+**Symptoms:**
+- Server startup shows "❌ Status: NOT CONFIGURED or INVALID" for OpenAI API key
+- You have created a `.env` file with `OPENAI_API_KEY`
+- The `/api/tenders/upload` endpoint doesn't work
+
+**Diagnostic Steps:**
+
+1. **Check if .env file exists in the correct location:**
+   ```bash
+   # From the project root directory
+   ls -la .env
+   ```
+   The `.env` file must be in the root directory (same level as `package.json`), NOT in `src/` or any subdirectory.
+
+2. **Check environment variable loading at startup:**
+   - Look for the "🔍 Environment Variables Loaded:" section in startup logs
+   - It should show if OPENAI_API_KEY is "Present" or "NOT SET"
+   
+   Example of correct startup output:
+   ```
+   🔍 Environment Variables Loaded:
+      - OPENAI_API_KEY: Present (sk-proj...)
+      - DATABASE_URL: Present
+      - NODE_ENV: development
+   ```
+
+3. **Verify .env file format:**
+   ```bash
+   # View your .env file (be careful not to commit this output!)
+   cat .env
+   ```
+   
+   Required format:
+   ```env
+   OPENAI_API_KEY=sk-proj-xxxxxxxxxxxxxxxxxxxxx
+   DATABASE_URL=postgresql://user:password@localhost:5432/maxbuild
+   ```
+   
+   **Common mistakes:**
+   - ❌ Spaces around `=`: `OPENAI_API_KEY = sk-xxx` (WRONG)
+   - ✅ No spaces: `OPENAI_API_KEY=sk-xxx` (CORRECT)
+   - ❌ Quotes around value: `OPENAI_API_KEY="sk-xxx"` (NOT NEEDED)
+   - ✅ Direct value: `OPENAI_API_KEY=sk-xxx` (CORRECT)
+   - ❌ Placeholder value: `OPENAI_API_KEY=your_openai_api_key_here` (WRONG)
+   - ✅ Real key: `OPENAI_API_KEY=sk-proj-...` (CORRECT)
+
+4. **Verify OpenAI API key format:**
+   - OpenAI keys typically start with `sk-proj-` (project keys) or `sk-` (legacy keys)
+   - Keys should be 40+ characters long
+   - No spaces, quotes, or special characters except hyphens
+   - Get your key from: https://platform.openai.com/api-keys
+
+5. **Check for placeholder values:**
+   
+   The system detects these placeholder values as invalid:
+   - `your_openai_api_key_here`
+   - `your-api-key`
+   - `your-api-key-here`
+   - `insert_key_here`
+   - `sk-your-key-here`
+   - `your_key_here`
+   - `replace_with_your_key`
+   
+   If you see any of these, replace with your actual OpenAI API key.
+
+**Solutions:**
+
+1. **Create or fix .env file:**
+   ```bash
+   # Copy from example
+   cp .env.example .env
+   
+   # Edit with your actual values
+   nano .env  # or use your preferred editor
+   ```
+
+2. **Verify file permissions:**
+   ```bash
+   # Ensure .env is readable
+   chmod 644 .env
+   ```
+
+3. **Restart the server after changing .env:**
+   ```bash
+   # Stop the server (Ctrl+C)
+   # Then restart
+   npm run dev
+   ```
+
+4. **Test with a minimal .env:**
+   ```env
+   # Create a minimal .env to test
+   OPENAI_API_KEY=sk-proj-your-actual-key-here
+   PORT=3000
+   ```
+
+5. **Check for .env in .gitignore:**
+   ```bash
+   # Verify .env is in .gitignore (it should be)
+   grep "\.env" .gitignore
+   ```
+   This prevents accidentally committing secrets to Git.
+
+**Advanced Diagnostics:**
+
+If the issue persists, check the startup logs for detailed diagnostic information:
+
+```bash
+npm run dev 2>&1 | grep -A 5 "Environment Variables"
+```
+
+Look for the detailed configuration status that shows:
+- Whether each environment variable is set
+- If set, a preview of the value (with most characters hidden for security)
+- Specific reasons why a configuration is considered invalid
+- Actionable fix instructions
+
+#### Problem: "Database: Not configured" despite having DATABASE_URL
+
+**Symptoms:**
+- Server startup shows database as not configured
+- You have `DATABASE_URL` in your `.env` file
+
+**Solutions:**
+
+Follow the same diagnostic steps as above for OpenAI API key, but for `DATABASE_URL`:
+
+1. **Check for placeholder values:**
+   
+   Invalid placeholder patterns detected:
+   - URLs containing `user:password@`
+   - URLs containing `username:password@`
+   - URLs containing `your_password`
+   - URLs containing `insert_url_here`
+
+2. **Correct DATABASE_URL format:**
+   ```env
+   # Format: postgresql://username:password@host:port/database
+   DATABASE_URL=postgresql://maxbuild_user:secure_password_123@localhost:5432/maxbuild?schema=public
+   ```
+
+3. **Test database connection:**
+   ```bash
+   # Test connection with Prisma
+   npx prisma db push --skip-generate
+   ```
+
+#### Problem: Changes to .env not taking effect
+
+**Cause:** The server loads environment variables once at startup. Changes to `.env` won't apply until you restart.
+
+**Solution:**
+```bash
+# Stop the server with Ctrl+C
+# Then restart it
+npm run dev
+```
+
+**Note:** If you're using `npm start` (production mode), you must rebuild after .env changes:
+```bash
+npm run build
+npm start
+```
+
+#### Problem: .env file not being loaded at all
+
+**Possible causes:**
+1. `.env` file doesn't exist
+2. `.env` file is in wrong directory
+3. `dotenv` package not installed
+4. Server started from wrong directory
+
+**Solutions:**
+
+1. **Verify dotenv is installed:**
+   ```bash
+   npm list dotenv
+   # Should show: dotenv@17.2.3 or similar
+   ```
+
+2. **Check current directory:**
+   ```bash
+   pwd  # Should show: /path/to/MaxBuild
+   ls package.json  # Should exist
+   ls .env  # Should exist
+   ```
+
+3. **Reinstall dependencies:**
+   ```bash
+   rm -rf node_modules package-lock.json
+   npm install
+   ```
+
+#### Quick Configuration Check Commands
+
+```bash
+# Check if .env exists and has correct structure
+[ -f .env ] && echo "✅ .env exists" || echo "❌ .env missing"
+grep -q "OPENAI_API_KEY=" .env && echo "✅ OPENAI_API_KEY line exists" || echo "❌ OPENAI_API_KEY line missing"
+grep -q "DATABASE_URL=" .env && echo "✅ DATABASE_URL line exists" || echo "❌ DATABASE_URL line missing"
+
+# Start server and check configuration status
+npm run dev
+# Look for the startup banner with configuration details
+```
+
 ### Excel/CSV Specific Issues
 
 **Problem:** Excel file won't upload
