@@ -15,7 +15,7 @@ MaxBuild provides **two upload endpoints** for different use cases:
 **Usage**:
 ```bash
 # Start server
-npm install
+npm ci --legacy-peer-deps
 npx ts-node src/index.ts
 
 # Test without file
@@ -29,6 +29,8 @@ curl -X POST http://localhost:3000/api/tenders/upload-mock \
 curl -X POST http://localhost:3000/api/tenders/upload-mock \
   -F "context=Focus on electrical and plumbing items"
 ```
+
+> **Note:** Use `npm ci --legacy-peer-deps` to bypass peer dependency conflicts. The `.npmrc` file is already configured for `npm install`, but CI/CD environments should use the explicit flag.
 
 **Features**:
 - ✅ No database required
@@ -236,7 +238,7 @@ If you want to test the frontend UI without setting up the backend:
 ### For Demo/Testing (No Setup)
 ```bash
 # Start server
-npm install && npx ts-node src/index.ts
+npm ci --legacy-peer-deps && npx ts-node src/index.ts
 
 # Test mock endpoint
 curl -X POST http://localhost:3000/api/tenders/upload-mock

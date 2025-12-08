@@ -23,7 +23,8 @@ COPY package*.json ./
 FROM base AS development
 
 # Install all dependencies (including devDependencies)
-RUN npm ci
+# Use --legacy-peer-deps to bypass strict peer dependency resolution
+RUN npm ci --legacy-peer-deps
 
 # Copy source code
 COPY . .
@@ -46,7 +47,8 @@ CMD ["npm", "run", "dev"]
 FROM base AS build
 
 # Install all dependencies (including devDependencies for build)
-RUN npm ci
+# Use --legacy-peer-deps to bypass strict peer dependency resolution
+RUN npm ci --legacy-peer-deps
 
 # Copy source code and configuration
 COPY . .
@@ -63,7 +65,8 @@ RUN npm run build
 FROM base AS production
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# Use --legacy-peer-deps to bypass strict peer dependency resolution
+RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
 # Copy built application from build stage
 COPY --from=build /app/dist ./dist

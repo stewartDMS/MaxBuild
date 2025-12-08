@@ -15,8 +15,10 @@ This guide will help you get the MAX Build tender automation system up and runni
 ```bash
 git clone https://github.com/stewartDMS/MaxBuild.git
 cd MaxBuild
-npm install
+npm ci --legacy-peer-deps
 ```
+
+> **Note:** The `--legacy-peer-deps` flag is required to resolve peer dependency conflicts between zod v4 and dependencies that require zod v3. This is already configured in the `.npmrc` file for `npm install`, but use `npm ci --legacy-peer-deps` for clean installs in CI/CD environments.
 
 ### 2. Database Setup
 

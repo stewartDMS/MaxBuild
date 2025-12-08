@@ -44,13 +44,15 @@ Perfect for testing and demos without any configuration:
 
 ```bash
 # 1. Install and start
-npm install && npx ts-node src/index.ts
+npm ci --legacy-peer-deps && npx ts-node src/index.ts
 
 # 2. Test immediately
 curl -X POST http://localhost:3000/api/tenders/upload-mock
 ```
 
 **No OpenAI API key or database required!** See [MOCK_ENDPOINT_TESTING.md](MOCK_ENDPOINT_TESTING.md) for details.
+
+> **Note:** Use `npm ci --legacy-peer-deps` to resolve peer dependency conflicts. See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) if you encounter issues.
 
 ### 🚀 Real Endpoint (Production Use) - **Requires Setup**
 
