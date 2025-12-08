@@ -4,6 +4,7 @@ import { BOQGenerationChain } from '../ai/chains/boq-generation.chain';
 import { ExcelService } from './excel.service';
 import { CSVService } from './csv.service';
 import { UnsupportedFileTypeError, EmptyFileError, ResourceNotFoundError, DatabaseError, AppError, ParsingError } from '../lib/errors';
+import { hasValidOpenAIKey, hasValidDatabaseUrl, MOCK_ENDPOINT_PATH, SETUP_GUIDE_PATH } from '../lib/config';
 import type { BOQExtraction, BOQItem } from '../ai/schemas/boq.schema';
 
 export interface TenderUploadResult {
@@ -76,6 +77,31 @@ export class TenderService {
     requiresReview: boolean = false
   ): Promise<TenderUploadResult | TenderPreviewResult> {
     console.log('🚀 Starting tender processing:', { fileName, fileSize, mimeType, hasContext: !!context, requiresReview });
+    
+    // Early validation: Check for required configuration
+    if (!hasValidOpenAIKey()) {
+      throw new AppError(
+        'OpenAI API key is not configured. The real upload endpoint requires an OpenAI API key to function.',
+        503,
+        'OPENAI_NOT_CONFIGURED',
+        {
+          suggestion: `Add OPENAI_API_KEY to your .env file. See ${SETUP_GUIDE_PATH} for instructions.`,
+          alternativeEndpoint: `For testing without setup, use POST ${MOCK_ENDPOINT_PATH}`,
+        }
+      );
+    }
+    
+    if (!hasValidDatabaseUrl()) {
+      throw new AppError(
+        'Database is not configured. The real upload endpoint requires a PostgreSQL database to function.',
+        503,
+        'DATABASE_NOT_CONFIGURED',
+        {
+          suggestion: `Add DATABASE_URL to your .env file and run migrations. See ${SETUP_GUIDE_PATH} for instructions.`,
+          alternativeEndpoint: `For testing without setup, use POST ${MOCK_ENDPOINT_PATH}`,
+        }
+      );
+    }
     
     let extractedText: string;
     let boqExtraction: BOQExtraction;

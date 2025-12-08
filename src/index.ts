@@ -5,6 +5,7 @@ import morgan from 'morgan';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/error.middleware';
 import { apiRateLimiter } from './middleware/rate-limit.middleware';
+import { getConfigurationStatus } from './lib/config';
 
 // Load environment variables
 dotenv.config();
@@ -102,6 +103,40 @@ app.listen(PORT, () => {
   console.log(`📝 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🔗 API URL: http://localhost:${PORT}`);
   console.log(`💡 Health check: http://localhost:${PORT}/api/health`);
+  
+  // Check configuration and provide helpful startup messages
+  console.log('\n📋 Configuration Status:');
+  
+  const config = getConfigurationStatus();
+  
+  if (config.hasOpenAIKey) {
+    console.log('✅ OpenAI API Key: Configured');
+  } else {
+    console.log('⚠️  OpenAI API Key: Not configured');
+    console.log('   → Real upload endpoint (/api/tenders/upload) will NOT work');
+    console.log('   → Set OPENAI_API_KEY in .env file to enable');
+  }
+  
+  if (config.hasDatabaseUrl) {
+    console.log('✅ Database: Configured');
+  } else {
+    console.log('⚠️  Database: Not configured');
+    console.log('   → Real upload endpoint (/api/tenders/upload) will NOT work');
+    console.log('   → Set DATABASE_URL in .env file to enable');
+  }
+  
+  if (!config.isFullyConfigured) {
+    console.log('\n💡 Quick Start:');
+    console.log('   1. For testing without setup, use the mock endpoint:');
+    console.log(`      curl -X POST http://localhost:${PORT}/api/tenders/upload-mock`);
+    console.log('   2. For production use, see SETUP_GUIDE.md for configuration steps');
+  } else {
+    console.log('\n✅ All systems ready! Both endpoints available:');
+    console.log(`   • Mock: POST /api/tenders/upload-mock (no external dependencies)`);
+    console.log(`   • Real: POST /api/tenders/upload (AI-powered with database)`);
+  }
+  
+  console.log('');
 });
 
 export default app;

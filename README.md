@@ -2,6 +2,45 @@
 
 AI-Powered Tender Automation System
 
+## ⚡ Quick Start
+
+MaxBuild provides **two upload endpoints** for different use cases:
+
+### 🎭 Mock Endpoint (No Setup Required) - **Ready to Use**
+
+Perfect for testing and demos without any configuration:
+
+```bash
+# 1. Install and start
+npm install && npx ts-node src/index.ts
+
+# 2. Test immediately
+curl -X POST http://localhost:3000/api/tenders/upload-mock
+```
+
+**No OpenAI API key or database required!** See [MOCK_ENDPOINT_TESTING.md](MOCK_ENDPOINT_TESTING.md) for details.
+
+### 🚀 Real Endpoint (Production Use) - **Requires Setup**
+
+For production use with real AI and database:
+
+```bash
+# 1. Configure (see SETUP_GUIDE.md)
+cp .env.example .env
+# Edit .env with your OpenAI API key and database URL
+
+# 2. Setup database
+npm run prisma:generate
+npm run prisma:migrate
+
+# 3. Start server
+npm run dev
+```
+
+**Requires**: OpenAI API key + PostgreSQL database. See [SETUP_GUIDE.md](SETUP_GUIDE.md) for complete instructions.
+
+---
+
 ## Overview
 
 MAX Build is an AI-powered tender automation system that uses LangChain, OpenAI, and PostgreSQL to automatically extract Bill of Quantities (BOQ) from tender documents. The system processes PDF tender documents and generates structured BOQ data using advanced AI models.
