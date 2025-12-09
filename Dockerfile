@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile for MaxBuild API
 # Optimized for both development and production deployments
 
-
+# ============================================================================
 # Base Stage - Common dependencies
 # ============================================================================
 FROM node:20-alpine AS base
@@ -75,8 +75,4 @@ EXPOSE 3000
 
 ENV NODE_ENV=production
 
-
 CMD ["npm", "start"]
-
-CMD ["npm", "start"]
-87d20ad2f7cb1daf08399e7c10757ccb46284c75
