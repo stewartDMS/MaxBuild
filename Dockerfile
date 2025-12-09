@@ -71,6 +71,9 @@ RUN groupadd -g 1001 nodejs && \
     useradd -r -u 1001 -g nodejs nodejs && \
     chown -R nodejs:nodejs /app
 
+# Create npm log directory with proper permissions to prevent npm errors
+RUN mkdir -p /home/nodejs/.npm/_logs && chown -R nodejs:nodejs /home/nodejs/.npm
+
 USER nodejs
 
 EXPOSE 3000
