@@ -1,10 +1,10 @@
 # Multi-stage Dockerfile for MaxBuild API
-# Optimized for both development and production deployments
+# Robust and Prisma-compatible (Debian base gives maximum compatibility)
 
 # ============================================================================
 # Base Stage - Common dependencies
 # ============================================================================
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 
 LABEL maintainer="MaxBuild Team"
 LABEL description="MaxBuild API - AI-Powered Tender Automation System"
@@ -19,6 +19,7 @@ COPY package*.json ./
 # ============================================================================
 FROM base AS development
 
+# Install all dependencies (including devDependencies)
 RUN npm ci --legacy-peer-deps
 
 COPY . .
@@ -49,10 +50,13 @@ RUN npm run build
 # ============================================================================
 FROM base AS production
 
+# Install system dependencies for Prisma (OpenSSL 1.1/3)
+RUN apt-get update && apt-get install -y openssl && rm -rf /var/lib/apt/lists/*
+
+# Install only production dependencies
 RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
-RUN apk add --no-cache openssl1.1-compat
-
+# Copy only what's needed for runtime
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=build /app/prisma ./prisma
@@ -62,8 +66,9 @@ COPY .env.example ./.env.example
 
 RUN mkdir -p uploads && chmod 755 uploads
 
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001 && \
+# Create a non-root user for security
+RUN groupadd -g 1001 nodejs && \
+    useradd -r -u 1001 -g nodejs nodejs && \
     chown -R nodejs:nodejs /app
 
 USER nodejs
