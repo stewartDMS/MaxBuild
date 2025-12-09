@@ -74,10 +74,12 @@ RUN groupadd -g 1001 nodejs && \
 # Create npm log directory with proper permissions to prevent npm errors
 RUN mkdir -p /home/nodejs/.npm/_logs && chown -R nodejs:nodejs /home/nodejs/.npm
 
+# Use nodejs user for production (change to 'root' if debugging file permission issues)
 USER nodejs
 
 EXPOSE 3000
 
 ENV NODE_ENV=production
 
-CMD ["npm", "start"]
+# Run with verbose logging to capture detailed npm and application output
+CMD ["npm", "start", "--loglevel=verbose"]
