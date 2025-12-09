@@ -19,7 +19,6 @@ COPY package*.json ./
 # ============================================================================
 FROM base AS development
 
-# Install all dependencies (including devDependencies)
 RUN npm ci --legacy-peer-deps
 
 COPY . .
@@ -50,10 +49,8 @@ RUN npm run build
 # ============================================================================
 FROM base AS production
 
-# Install only production dependencies; use legacy-peer-deps
 RUN npm ci --only=production --legacy-peer-deps && npm cache clean --force
 
-# For Prisma + Alpine, ensure OpenSSL compatibility
 RUN apk add --no-cache openssl1.1-compat
 
 COPY --from=build /app/dist ./dist
